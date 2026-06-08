@@ -21,6 +21,16 @@ required_files=(
   RUNBOOK.zh-CN.md
   FILES.md
   ACCEPTANCE.md
+  CONTRIBUTING.md
+  CHANGELOG.md
+  SECURITY.md
+  OPEN_SOURCE_CHECKLIST.md
+  docs/architecture.md
+  docs/troubleshooting.md
+  docs/development.md
+  .github/ISSUE_TEMPLATE/bug_report.md
+  .github/ISSUE_TEMPLATE/docs_improvement.md
+  .github/pull_request_template.md
   scripts/install_macos_tools.sh
   scripts/install_droidvnc_ng.sh
   scripts/configure_droidvnc.sh

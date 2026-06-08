@@ -8,6 +8,14 @@
 - `RUNBOOK.zh-CN.md`：日常运维和故障恢复。
 - `ACCEPTANCE.md`：验收标准。
 - `FILES.md`：本文件。
+- `CONTRIBUTING.md`：贡献说明和安全边界。
+- `CHANGELOG.md`：版本变化记录。
+- `SECURITY.md`：安全说明。
+- `docs/architecture.md`：英文架构说明。
+- `docs/troubleshooting.md`：英文排障说明。
+- `docs/development.md`：开发和发布卫生说明。
+- `.github/ISSUE_TEMPLATE/`：GitHub issue 模板。
+- `.github/pull_request_template.md`：PR 模板。
 
 ## 当前主线脚本
 
