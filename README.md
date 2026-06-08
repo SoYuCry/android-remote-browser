@@ -1,87 +1,125 @@
-# iPhone 通过 Tailscale 远程控制安卓手机
+# Android Remote Browser
 
-这套目录记录并自动化了当前已经实测成功的方案：
+Use an iPhone browser to view and control your own Android phone over a private Tailscale network.
+
+This project packages a working Android-side VNC/noVNC setup around **droidVNC-NG**, **Tailscale**, and a small Go WebSocket proxy so the controller can simply be **Safari on iPhone**.
 
 ```text
 iPhone Safari
-  -> Tailscale 私有网络
+  -> Tailscale private network
   -> Android <ANDROID_TAILSCALE_IP>:6080
-  -> android-novnc-proxy
+  -> android-novnc-proxy /websockify
   -> droidVNC-NG 127.0.0.1:5900
-  -> Android 触控输入
+  -> Android screen + touch input
 ```
 
-当前成功入口：
+Example noVNC URL:
 
 ```text
 http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=6080&path=websockify&encrypt=0&autoconnect=true
 ```
 
-> 仅用于你有权控制的自有设备、测试、维护、辅助操作。不要用于虚假定位、虚假到岗、规避单位/应用规则或任何未授权操作。
+> Use this only for devices and actions you own or are authorized to control. Do not use it to misrepresent location/presence, bypass workplace or app rules, or perform unauthorized actions.
 
-## 该看哪个文件
+## Why this exists
 
-- [`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md)：最短安装/恢复流程。
-- [`GUIDE.zh-CN.md`](GUIDE.zh-CN.md)：完整专业实施指南，可分享给别人。
-- [`RUNBOOK.zh-CN.md`](RUNBOOK.zh-CN.md)：日常运维、隔夜、掉线、关机后恢复。
-- [`FILES.md`](FILES.md)：本目录每个脚本/文件是干什么的。
-- [`ACCEPTANCE.md`](ACCEPTANCE.md)：验收清单。
+Remote Android control from iPhone sounds simple, but in practice several pieces do not line up cleanly:
 
-## 最常用命令
+- many iOS VNC clients are picky about Android VNC servers;
+- droidVNC-NG's built-in browser page may not expose a Safari-compatible WebSocket endpoint in every setup;
+- exposing VNC/ADB directly to the internet is unsafe;
+- Android screen-capture permissions can expire after sleep, reboot, or process death.
 
-省电常驻配置，允许屏幕 1 分钟后正常熄灭：
+This repo provides a repeatable, private-network workflow that was tested end-to-end with:
+
+- iPhone Safari as the controller;
+- Tailscale as the private network;
+- droidVNC-NG as the Android VNC server;
+- a lightweight `android-novnc-proxy` serving noVNC on port `6080`.
+
+## Quick start
+
+See [`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md) for the short Chinese setup guide.
+
+Minimal flow:
 
 ```bash
-./scripts/configure_battery_friendly_persistence.sh --serial <ANDROID_SERIAL> --screen-timeout 60000
+# 1. Install droidVNC-NG onto an authorized Android device
+./scripts/install_droidvnc_ng.sh --serial <ANDROID_SERIAL>
+
+# 2. Configure and start droidVNC-NG on Android port 5900
+./scripts/configure_droidvnc.sh \
+  --serial <ANDROID_SERIAL> \
+  --port 5900 \
+  --scaling 0.6 \
+  --start-on-boot
+
+# 3. Build/deploy/start the Android noVNC proxy on port 6080
+./scripts/start_android_novnc_proxy.sh --serial <ANDROID_SERIAL>
+
+# 4. Prefer battery-friendly persistence: screen may sleep after 60s
+./scripts/configure_battery_friendly_persistence.sh \
+  --serial <ANDROID_SERIAL> \
+  --screen-timeout 60000
 ```
 
-隔夜/画面冻结/Connect 失败时，一键恢复：
+Then open the printed Safari URL on your iPhone while both devices are connected to the same Tailscale tailnet.
+
+## Daily recovery
+
+If the page opens but the connection fails, or touch input works while the image is stale, run:
 
 ```bash
 ./scripts/recover_droidvnc_session.sh --serial <ANDROID_SERIAL> --port 5900
 ```
 
-重新部署 noVNC 代理：
+If you do not have ADB/Mac access, recover directly on the Android phone:
 
-```bash
-./scripts/start_android_novnc_proxy.sh --serial <ANDROID_SERIAL>
-```
+1. Open Tailscale and confirm it is `Connected`.
+2. Open droidVNC-NG.
+3. Confirm `Input = GRANTED`.
+4. If `Screen Capturing = DENIED`, tap `START` and approve the Android screen-capture prompt.
+5. Confirm the main droidVNC-NG button shows `STOP` — that means the server is running.
+6. Reopen the noVNC URL on iPhone Safari.
 
-检查状态：
+## Important limitation
 
-```bash
-./scripts/check_android_tailscale.sh --serial <ANDROID_SERIAL>
-./scripts/check_droidvnc.sh --serial <ANDROID_SERIAL> --port 5900
-```
+Android screen capture is controlled by the system MediaProjection permission. On non-root, non-device-owner devices, this permission may need user confirmation again after reboot, sleep, process death, or other system events.
 
-## 当前必要组件
+This project can keep Tailscale/droidVNC as persistent as Android reasonably allows, but it cannot guarantee permanent unattended screen-capture permission on every phone/OEM build.
 
-Mac/ADB 侧：
+## Documentation
 
-- `adb`
-- `bash`
-- `python3`
-- `go`，用于按需编译 `tools/android-novnc-proxy/android-novnc-proxy`
+- [`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md) — shortest setup and recovery path.
+- [`GUIDE.zh-CN.md`](GUIDE.zh-CN.md) — full implementation guide.
+- [`RUNBOOK.zh-CN.md`](RUNBOOK.zh-CN.md) — day-to-day operations and troubleshooting.
+- [`FILES.md`](FILES.md) — what each script/file does.
+- [`ACCEPTANCE.md`](ACCEPTANCE.md) — verification checklist.
+- [`SECURITY.md`](SECURITY.md) — security notes for public/private use.
 
-Android 侧：
+## Scripts
 
-- Tailscale
-- droidVNC-NG
-- USB 调试授权，仅用于安装、配置、恢复；日常 iPhone 控制不依赖 USB。
+Core scripts:
 
-iPhone 侧：
+- `scripts/install_droidvnc_ng.sh` — install droidVNC-NG APK through ADB.
+- `scripts/configure_droidvnc.sh` — seed droidVNC settings, password, port, and start the VNC service.
+- `scripts/start_android_novnc_proxy.sh` — build/deploy/start the Go noVNC WebSocket proxy on Android.
+- `scripts/configure_battery_friendly_persistence.sh` — allow screen sleep while relaxing Android background restrictions for Tailscale/droidVNC.
+- `scripts/recover_droidvnc_session.sh` — recover after overnight sleep, stale screen capture, or proxy failure.
+- `scripts/check_android_tailscale.sh` / `scripts/check_droidvnc.sh` — inspect runtime state.
 
-- Tailscale
-- Safari
+## Local secrets and generated files
 
-## 目录整理说明
+Do not publish these:
 
-当前主线只保留 iPhone + Tailscale + Android VNC/noVNC 方案。
+- `.droidvnc.env`
+- `.secrets/`
+- `downloads/`
+- `.omx/`
+- generated binary `tools/android-novnc-proxy/android-novnc-proxy`
 
-早期探索过的 Mac USB/scrcpy、无线 ADB、Mac 远程桌面桥接方案已经移到：
+They are ignored by `.gitignore`. Use [`examples/droidvnc.env.example`](examples/droidvnc.env.example) as the public template.
 
-```text
-archive/legacy-usb-scrcpy/
-```
+## License
 
-这些不是当前教程的必要步骤，只作为历史参考保留。
+MIT. See [`LICENSE`](LICENSE).
