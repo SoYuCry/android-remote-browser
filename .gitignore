@@ -1,0 +1,23 @@
+# Local secrets / device-specific runtime config
+.droidvnc.env
+.secrets/
+*.env
+!.env.example
+
+# Downloaded APK/cache artifacts
+downloads/
+*.apk
+*.xapk
+
+# Built binaries
+tools/android-novnc-proxy/android-novnc-proxy
+
+# Local orchestration/runtime logs
+.omx/
+archive/
+*.log
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
