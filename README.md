@@ -1,154 +1,171 @@
 # Android Remote Browser
 
-<p align="center">
-  <strong>Control your own Android phone from iPhone Safari over Tailscale.</strong>
-</p>
+**极其推荐：用数据线连接安卓手机，开启 USB Debugging，然后直接让 AI Agent 根据本教程完成配置、检查与日常恢复操作。** 这样最省心，也最适合不熟悉 ADB、Tailscale、VNC/noVNC 的用户。
+
+> English version: [`README.en.md`](README.en.md)
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
-  <img alt="Platform: Android" src="https://img.shields.io/badge/Android-droidVNC--NG-3DDC84.svg">
-  <img alt="Client: iPhone Safari" src="https://img.shields.io/badge/Client-iPhone%20Safari-black.svg">
-  <img alt="Network: Tailscale" src="https://img.shields.io/badge/Network-Tailscale-6f42c1.svg">
+  <img alt="Android" src="https://img.shields.io/badge/Android-droidVNC--NG-3DDC84.svg">
+  <img alt="Client" src="https://img.shields.io/badge/Client-iPhone%20Safari-black.svg">
+  <img alt="Network" src="https://img.shields.io/badge/Network-Tailscale-6f42c1.svg">
 </p>
 
-Android Remote Browser is a small, practical toolkit for controlling an Android phone from an iPhone browser through a private Tailscale network. It combines **droidVNC-NG**, **noVNC**, and a lightweight Go WebSocket proxy that runs directly on Android.
+Android Remote Browser 是一套让 **iPhone Safari 通过 Tailscale 私有网络远程控制自有 Android 手机** 的开源工具与教程。它把 `droidVNC-NG`、`noVNC` 和一个很小的 Go WebSocket 代理串起来，让安卓手机自己提供网页远控入口。
 
 ```text
 iPhone Safari
-  -> Tailscale private network
+  -> Tailscale 私有网络
   -> Android <ANDROID_TAILSCALE_IP>:6080
   -> android-novnc-proxy /websockify
   -> droidVNC-NG 127.0.0.1:5900
-  -> Android screen + touch input
+  -> Android 画面与触控输入
 ```
 
-> **Safety boundary**: use this only for devices and actions you own or are explicitly authorized to control. Do not use it to misrepresent location/presence, bypass workplace or app rules, or perform unauthorized actions.
+最终访问地址形如：
 
----
+```text
+http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=6080&path=websockify&encrypt=0&autoconnect=true
+```
 
-## What you get
+> **使用边界**：仅用于你拥有或被明确授权管理的设备，例如测试、维护、辅助操作、演示和自用远程管理。不要用于虚假定位、虚假到岗、绕过单位/应用规则或任何未授权操作。
 
-- Browser-based Android remote control from **iPhone Safari**.
-- Private-network access via **Tailscale** instead of exposing VNC/ADB to the internet.
-- A tiny Android-side **noVNC WebSocket proxy** for Safari-compatible browser control.
-- Scripts for installation, recovery, battery-friendly persistence, and diagnostics.
-- Chinese quickstart, full guide, and operations runbook based on a real end-to-end setup.
+## 效果演示
 
-## What you need
+下面是配置成功后的实际效果：左侧 Android 运行 `droidVNC-NG`，右侧 iPhone Safari 通过 noVNC 看到同一台 Android，并可以远程点击/滑动。
 
-| Side | Requirement |
+<p align="center">
+  <img src="docs/assets/demo-success.jpg" alt="iPhone Safari 通过 noVNC 远程控制 Android 的成功演示" width="720">
+</p>
+
+## 这个项目解决什么问题
+
+从 iPhone 远程控制 Android 听起来简单，但实际会碰到几个坑：
+
+- iOS 上的 VNC 客户端不一定能稳定连接 Android VNC 服务；
+- droidVNC-NG 自带网页入口在某些环境下不够适配 Safari/noVNC；
+- 直接把 VNC 或 ADB 暴露到公网非常危险；
+- Android 的屏幕采集权限可能在锁屏、休眠、重启或进程被杀后失效；
+- 普通用户很容易卡在 ADB、Tailscale、端口、权限、noVNC 参数这些细节上。
+
+本项目提供一条已经实测走通的路线：
+
+- 用 **Tailscale** 建立私有网络；
+- 用 **droidVNC-NG** 在 Android 上提供 VNC 服务；
+- 用 **android-novnc-proxy** 在 Android 上提供 Safari 可访问的 noVNC 页面；
+- 用脚本完成安装、配置、检查、省电常驻和故障恢复。
+
+## 准备条件
+
+| 位置 | 需要准备 |
 | --- | --- |
-| Android | droidVNC-NG, Tailscale, USB debugging for initial setup |
-| iPhone | Tailscale, Safari |
-| Mac/Linux host | `adb`, `python3`, `go`, USB access for setup/recovery |
+| Android | droidVNC-NG、Tailscale、USB Debugging 初始授权 |
+| iPhone | Tailscale、Safari |
+| Mac / Linux 配置机 | `adb`、`python3`、`go`、一根能传数据的 USB 线 |
 
-Daily iPhone control does **not** require the setup computer to stay online. The computer is mainly used to install/configure Android services and to recover the proxy if Android reboots or kills it.
+日常从 iPhone 控制 Android 时，配置机不需要一直在线；它主要用于初始安装、配置和必要时恢复服务。
 
-## Quick start
+## 快速开始
 
-See [`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md) for the shortest Chinese setup path.
+完整中文步骤见：[`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md)。
+
+最短流程如下：
 
 ```bash
-# 1. Install droidVNC-NG onto an authorized Android device
+# 1. 安装 droidVNC-NG 到已授权 USB Debugging 的 Android 设备
 ./scripts/install_droidvnc_ng.sh --serial <ANDROID_SERIAL>
 
-# 2. Configure and start droidVNC-NG on Android port 5900
+# 2. 配置并启动 Android 上的 VNC 服务，端口 5900
 ./scripts/configure_droidvnc.sh \
   --serial <ANDROID_SERIAL> \
   --port 5900 \
   --scaling 0.6 \
   --start-on-boot
 
-# 3. Build/deploy/start the Android noVNC proxy on port 6080
+# 3. 编译/部署/启动 Android 上的 noVNC 代理，端口 6080
 ./scripts/start_android_novnc_proxy.sh --serial <ANDROID_SERIAL>
 
-# 4. Prefer battery-friendly persistence: screen may sleep after 60s
+# 4. 配置省电常驻：允许屏幕 60 秒后熄灭，同时尽量保活 Tailscale/droidVNC
 ./scripts/configure_battery_friendly_persistence.sh \
   --serial <ANDROID_SERIAL> \
   --screen-timeout 60000
 ```
 
-The proxy script prints the browser URL. It has this shape:
+`start_android_novnc_proxy.sh` 会自动打印 iPhone Safari 应该打开的 URL。
 
-```text
-http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=6080&path=websockify&encrypt=0&autoconnect=true
-```
+## 日常恢复
 
-Open that URL in iPhone Safari while both devices are connected to the same Tailscale tailnet.
+如果隔夜后出现以下情况：
 
-## How it works
+- Safari 页面能打开但 Connect 失败；
+- 可以远程点击，但画面不刷新；
+- 画面停在锁屏或旧画面；
+- noVNC 代理被系统杀掉；
 
-1. **droidVNC-NG** captures and controls the Android screen through VNC on `127.0.0.1:5900`.
-2. **android-novnc-proxy** serves noVNC static assets and forwards `/websockify` WebSocket traffic to the local VNC server.
-3. **Tailscale** gives the Android phone a private `100.x.y.z` address reachable from your iPhone.
-4. **Safari** loads noVNC from `http://<ANDROID_TAILSCALE_IP>:6080/` and sends touch/mouse input back to Android.
-
-For more detail, see [`docs/architecture.md`](docs/architecture.md).
-
-## Daily operations
-
-If the page opens but connection fails, or touch input works while the image is stale:
+有 ADB/配置机时，直接运行：
 
 ```bash
 ./scripts/recover_droidvnc_session.sh --serial <ANDROID_SERIAL> --port 5900
 ```
 
-If you do not have ADB/Mac access, recover directly on the Android phone:
+没有配置机时，在 Android 本机手动恢复：
 
-1. Open Tailscale and confirm it is `Connected`.
-2. Open droidVNC-NG.
-3. Confirm `Input = GRANTED`.
-4. If `Screen Capturing = DENIED`, tap `START` and approve the Android screen-capture prompt.
-5. Confirm the main droidVNC-NG button shows `STOP` — that means the server is running.
-6. Reopen the noVNC URL on iPhone Safari.
+1. 打开 Tailscale，确认状态是 `Connected`；
+2. 打开 droidVNC-NG；
+3. 确认 `Input = GRANTED`；
+4. 如果 `Screen Capturing = DENIED`，点 `START`；
+5. 系统弹出屏幕采集授权时点允许；
+6. 确认按钮变成 `STOP`，这代表服务正在运行；
+7. 回到 iPhone Safari 重新打开 noVNC 链接。
 
-See [`RUNBOOK.zh-CN.md`](RUNBOOK.zh-CN.md) and [`docs/troubleshooting.md`](docs/troubleshooting.md) for the full recovery playbook.
+详见：[`RUNBOOK.zh-CN.md`](RUNBOOK.zh-CN.md) 和 [`docs/troubleshooting.md`](docs/troubleshooting.md)。
 
-## Important limitation
+## 必须知道的限制
 
-Android screen capture is controlled by the system MediaProjection permission. On non-root, non-device-owner devices, this permission may need user confirmation again after reboot, sleep, process death, or OEM battery-management events.
+Android 的屏幕采集由系统 `MediaProjection` 权限控制。对于非 root、非设备所有者模式的普通手机，这个权限在重启、深度休眠、进程被杀或某些厂商省电策略触发后，可能需要用户再次确认。
 
-This project can keep Tailscale/droidVNC as persistent as Android reasonably allows, but it cannot guarantee permanent unattended screen-capture permission on every phone/OEM build.
+也就是说，本项目可以尽量让 Tailscale 和 droidVNC-NG 常驻，但不能保证所有 Android 机型都能永久无人值守地保持 `Screen Capturing = GRANTED`。
 
-## Repository map
+## 项目结构
 
-| Path | Purpose |
+| 路径 | 说明 |
 | --- | --- |
-| `scripts/` | Setup, recovery, diagnostics, and persistence scripts |
-| `tools/android-novnc-proxy/` | Go WebSocket-to-VNC proxy source |
-| `docs/` | Architecture, troubleshooting, development notes |
-| `QUICKSTART.zh-CN.md` | Short Chinese setup guide |
-| `GUIDE.zh-CN.md` | Full Chinese implementation guide |
-| `RUNBOOK.zh-CN.md` | Daily operations runbook |
-| `FILES.md` | Detailed file inventory |
-| `ACCEPTANCE.md` | Verification checklist |
+| `scripts/` | 安装、配置、恢复、检查、省电常驻脚本 |
+| `tools/android-novnc-proxy/` | Go 写的 WebSocket-to-VNC 代理源码 |
+| `docs/` | 架构、排障、开发说明和演示图 |
+| `QUICKSTART.zh-CN.md` | 最短中文启动流程 |
+| `GUIDE.zh-CN.md` | 完整中文实施指南 |
+| `RUNBOOK.zh-CN.md` | 日常运维手册 |
+| `README.en.md` | 英文 README |
+| `FILES.md` | 文件清单 |
+| `ACCEPTANCE.md` | 验收清单 |
 
-## Core scripts
+## 核心脚本
 
-- `scripts/install_droidvnc_ng.sh` — install droidVNC-NG APK through ADB.
-- `scripts/configure_droidvnc.sh` — seed droidVNC settings, password, port, and start the VNC service.
-- `scripts/start_android_novnc_proxy.sh` — build/deploy/start the Go noVNC WebSocket proxy on Android.
-- `scripts/configure_battery_friendly_persistence.sh` — allow screen sleep while relaxing Android background restrictions for Tailscale/droidVNC.
-- `scripts/recover_droidvnc_session.sh` — recover after overnight sleep, stale screen capture, or proxy failure.
-- `scripts/check_android_tailscale.sh` / `scripts/check_droidvnc.sh` — inspect runtime state.
+- `scripts/install_droidvnc_ng.sh`：通过 ADB 安装 droidVNC-NG。
+- `scripts/configure_droidvnc.sh`：写入 droidVNC 配置、密码、端口和缩放，并启动 VNC 服务。
+- `scripts/start_android_novnc_proxy.sh`：编译/部署/启动 Android 上的 noVNC WebSocket 代理。
+- `scripts/configure_battery_friendly_persistence.sh`：允许屏幕熄灭，同时尽量放开 Tailscale/droidVNC 的后台限制。
+- `scripts/recover_droidvnc_session.sh`：隔夜、画面冻结、屏幕采集权限丢失或代理异常时恢复。
+- `scripts/check_android_tailscale.sh` / `scripts/check_droidvnc.sh`：检查运行状态。
 
-## Security notes
+## 安全说明
 
-Do not publish or commit:
+不要提交或公开：
 
 - `.droidvnc.env`
 - `.secrets/`
 - `downloads/`
 - `.omx/`
-- generated binary `tools/android-novnc-proxy/android-novnc-proxy`
+- 生成的二进制文件 `tools/android-novnc-proxy/android-novnc-proxy`
 
-They are ignored by `.gitignore`. Use [`examples/droidvnc.env.example`](examples/droidvnc.env.example) as the public template.
+这些都已经被 `.gitignore` 忽略。公开模板见：[`examples/droidvnc.env.example`](examples/droidvnc.env.example)。
 
-Never expose ADB (`5555`), VNC (`5900`), or noVNC (`6080`) directly to the public internet. Use a private network such as Tailscale/ZeroTier and rotate VNC credentials if they were ever shared.
+不要把 ADB `5555`、VNC `5900` 或 noVNC `6080` 直接暴露到公网。请使用 Tailscale/ZeroTier 这类私有网络，并定期轮换 VNC 密码。
 
-## Contributing
+## 参与贡献
 
-Contributions are welcome if they improve clarity, portability, safety, or recovery reliability. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/development.md`](docs/development.md).
+欢迎改进文档、兼容性、恢复流程和不同 Android 机型的经验。贡献前请看：[`CONTRIBUTING.md`](CONTRIBUTING.md) 与 [`docs/development.md`](docs/development.md)。
 
 ## License
 

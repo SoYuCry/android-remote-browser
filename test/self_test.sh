@@ -16,6 +16,7 @@ printf 'Root: %s\n\n' "$ROOT"
 
 required_files=(
   README.md
+  README.en.md
   QUICKSTART.zh-CN.md
   GUIDE.zh-CN.md
   RUNBOOK.zh-CN.md
@@ -28,6 +29,7 @@ required_files=(
   docs/architecture.md
   docs/troubleshooting.md
   docs/development.md
+  docs/assets/demo-success.jpg
   .github/ISSUE_TEMPLATE/bug_report.md
   .github/ISSUE_TEMPLATE/docs_improvement.md
   .github/pull_request_template.md

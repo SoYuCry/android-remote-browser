@@ -2,7 +2,8 @@
 
 ## 主教程文件
 
-- `README.md`：当前方案入口和最常用命令。
+- `README.md`：中文项目主页和最常用命令。
+- `README.en.md`：英文项目主页。
 - `QUICKSTART.zh-CN.md`：最短可执行流程。
 - `GUIDE.zh-CN.md`：完整实施指南，可分享。
 - `RUNBOOK.zh-CN.md`：日常运维和故障恢复。
@@ -14,6 +15,7 @@
 - `docs/architecture.md`：英文架构说明。
 - `docs/troubleshooting.md`：英文排障说明。
 - `docs/development.md`：开发和发布卫生说明。
+- `docs/assets/demo-success.jpg`：配置成功演示图。
 - `.github/ISSUE_TEMPLATE/`：GitHub issue 模板。
 - `.github/pull_request_template.md`：PR 模板。
 
