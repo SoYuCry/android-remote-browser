@@ -93,6 +93,30 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
 
 `start_android_novnc_proxy.sh` 会自动打印 iPhone Safari 应该打开的 URL。
 
+## 免手输 VNC 密码
+
+noVNC 支持把 VNC 密码放进 URL 参数。确认连接成功后，可以把下面这种链接保存成 iPhone Safari 书签：
+
+```text
+http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=6080&path=websockify&encrypt=0&autoconnect=true&password=<VNC_PASSWORD>
+```
+
+这样打开书签后通常会自动连接，不需要每次手动输入 VNC 密码。
+
+注意：
+
+- 这个链接等同于包含密码，不要截图、公开分享或提交到仓库；
+- 只建议保存在你自己的 iPhone / 私有密码管理器 / 私有备忘录里；
+- 如果这个链接泄露，立刻轮换 VNC 密码：
+
+```bash
+./scripts/configure_droidvnc.sh \
+  --serial <ANDROID_SERIAL> \
+  --port 5900 \
+  --scaling 0.6 \
+  --rotate-credentials
+```
+
 ## 日常恢复
 
 如果隔夜后出现以下情况：
