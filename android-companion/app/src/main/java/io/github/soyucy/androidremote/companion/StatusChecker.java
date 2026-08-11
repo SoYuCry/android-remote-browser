@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.StrictMode;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -64,11 +65,17 @@ final class StatusChecker {
     }
 
     private static boolean canConnect(String host, int port, int timeoutMs) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new java.net.InetSocketAddress(host, port), timeoutMs);
-            return true;
+        StrictMode.ThreadPolicy oldPolicy = StrictMode.getThreadPolicy();
+        try {
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder(oldPolicy).permitNetwork().build());
+            try (Socket socket = new Socket()) {
+                socket.connect(new java.net.InetSocketAddress(host, port), timeoutMs);
+                return true;
+            }
         } catch (Exception e) {
             return false;
+        } finally {
+            StrictMode.setThreadPolicy(oldPolicy);
         }
     }
 
