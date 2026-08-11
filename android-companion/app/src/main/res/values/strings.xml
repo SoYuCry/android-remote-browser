@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Remote Browser Companion</string>
+    <string name="notification_channel_name">Remote Browser Service</string>
+</resources>

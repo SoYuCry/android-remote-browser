@@ -34,6 +34,14 @@
 - `scripts/harden_remote_control.sh`：强保活配置；偏向长久在线/接电场景，不是日常省电首选。
 - `scripts/clear_android_lock_credential.sh`：清除自有安卓设备锁屏密码；需要当前 PIN/密码。
 
+
+## Android Companion App
+
+- `android-companion/`：实验性 Android App，把 `6080` noVNC proxy 做成前台服务和开机自启组件。
+- `scripts/prepare_companion_assets.sh`：从 droidVNC-NG APK 提取 noVNC 静态资源到 Companion App assets。
+- `scripts/build_companion_app.sh`：准备 assets 并构建 Companion debug APK。
+- `scripts/install_companion_app.sh`：构建并安装 Companion debug APK 到 Android。
+
 ## 代理程序
 
 - `tools/android-novnc-proxy/main.go`：自制 noVNC 静态文件服务 + WebSocket 到 VNC TCP 转发器。

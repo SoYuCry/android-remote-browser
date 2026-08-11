@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'io.github.soyucy.androidremote.companion'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.soyucy.androidremote.companion'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0'
+    }
+}

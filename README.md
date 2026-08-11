@@ -117,6 +117,23 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
   --rotate-credentials
 ```
 
+
+## Android Companion App（实验）
+
+如果希望手机没电关机/重启后不再依赖 Mac 手动恢复 `6080`，可以使用实验性的 Android Companion App。它把 noVNC browser proxy 做成 Android 前台服务，并提供 Tailscale / droidVNC / 端口状态面板。
+
+源码在：[`android-companion/`](android-companion/)
+
+常用命令：
+
+```bash
+./scripts/prepare_companion_assets.sh
+./scripts/build_companion_app.sh
+./scripts/install_companion_app.sh --serial <ANDROID_SERIAL>
+```
+
+第一版只守护远程控制链路，不包含第三方 App 定时打开或自动化操作。
+
 ## 日常恢复
 
 如果隔夜后出现以下情况：

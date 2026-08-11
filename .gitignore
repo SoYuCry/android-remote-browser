@@ -21,3 +21,9 @@ archive/
 .DS_Store
 .idea/
 .vscode/
+
+# Android Companion build artifacts
+android-companion/.gradle/
+android-companion/build/
+android-companion/app/build/
+android-companion/local.properties
