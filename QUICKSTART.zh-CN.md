@@ -1,5 +1,7 @@
 # 快速启动：iPhone 通过 Tailscale 控制安卓
 
+只需要“打开飞书一下并返回桌面”？使用 [Companion 快捷操作与配对](android-companion/README.md#快捷操作与设备配对)，首次配对后可直接执行，保持自动熄屏。Windows 构建与 6081 并行安装也见该文档。下面的步骤是原有 Go 代理的完整画面远控路线。
+
 ## 1. 一次性准备
 
 ### Android

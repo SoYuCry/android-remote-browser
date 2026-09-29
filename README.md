@@ -11,13 +11,39 @@
   <img alt="Network" src="https://img.shields.io/badge/Network-Tailscale-6f42c1.svg">
 </p>
 
-Android Remote Browser 是一套让 **iPhone Safari 通过 Tailscale 私有网络远程控制自有 Android 手机** 的开源工具与教程。它把 `droidVNC-NG`、`noVNC` 和一个很小的 Go WebSocket 代理串起来，让安卓手机自己提供网页远控入口。
+Android Remote Browser 是一套让 **iPhone Safari 通过 Tailscale 私有网络操作自有 Android 手机** 的开源工具与教程。Android Companion 提供快捷操作和完整远控两个入口，也保留了原来的 Go 代理部署方式。日常使用无需电脑保持在线或 USB 常接。
+
+## 选择使用方式
+
+| 需求 | 入口 | 使用方式 |
+| --- | --- | --- |
+| 打开飞书一下，然后返回桌面 | `/quick` | 首次配对并记住浏览器，以后一键执行 |
+| 查看手机画面、自由点击和滑动 | `/vnc.html` | 连接 droidVNC-NG，使用原来的 VNC 密码 |
+
+快捷操作流程：**唤醒手机 → 打开飞书 → 确认进入前台后停留 5 秒 → 返回桌面**。不需要加载完整远控画面，不返回截图，保持原来的自动熄屏设置。
+
+只使用快捷操作时，需要 Companion、Tailscale 和飞书；完整画面远控还需要 droidVNC-NG。
+
+### 快捷操作上手
+
+1. 安装并打开 Android Companion，两台手机连接同一 Tailscale 网络。
+2. 安卓端开启“快捷操作：打开飞书并返回桌面”无障碍服务，并允许后台运行。
+3. 点击“复制快捷操作网址”，在 iPhone Safari 中打开。
+4. 安卓端点击“生成配对码”，在网页输入 6 位数字。以后使用同一浏览器直接点击“打开飞书一次”。
+
+默认地址为 `http://<ANDROID_TAILSCALE_IP>:6080/quick`。如果旧 APK 签名不同，可安装独立的“手机快捷操作”并行版，地址改为 **6081** 端口，原有 6080 远控保留。
+
+配对码 5 分钟有效且只能使用一次；网页可忘记当前设备，安卓端可撤销全部配对。清除浏览器数据或更换访问地址后需要重新配对。快捷操作配对与 VNC 密码相互独立。
+
+安装、Windows 构建和权限配置见 [Companion 使用说明](android-companion/README.md)。已有版本的功能变化见 [CHANGELOG](CHANGELOG.md)。
+
+## 完整远控链路
 
 ```text
 iPhone Safari
   -> Tailscale 私有网络
   -> Android <ANDROID_TAILSCALE_IP>:6080
-  -> android-novnc-proxy /websockify
+  -> Companion / Go proxy /websockify
   -> droidVNC-NG 127.0.0.1:5900
   -> Android 画面与触控输入
 ```
@@ -61,7 +87,8 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
 | --- | --- |
 | Android | droidVNC-NG、Tailscale、USB Debugging 初始授权 |
 | iPhone | Tailscale、Safari |
-| Mac / Linux 配置机 | `adb`、`python3`、`go`、一根能传数据的 USB 线 |
+| Mac / Linux 配置机（Go 代理路线） | `adb`、`python3`、`go`、一根能传数据的 USB 线 |
+| Companion 构建机（支持 Windows） | Node.js、JDK 17、Gradle 8.9、Android SDK、ADB |
 
 日常从 iPhone 控制 Android 时，配置机不需要一直在线；它主要用于初始安装、配置和必要时恢复服务。
 
@@ -69,7 +96,7 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
 
 完整中文步骤见：[`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md)。
 
-最短流程如下：
+以下是原有 Go 代理路线；使用快捷操作请按上方 Companion 流程安装，不必另外启动 Go 代理：
 
 ```bash
 # 1. 安装 droidVNC-NG 到已授权 USB Debugging 的 Android 设备
@@ -134,6 +161,17 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
 
 0.2 版增加配对后手动触发的快捷操作：唤醒手机、打开飞书 5 秒并返回桌面，保留原有自动熄屏设置；不执行应用内点击或判断业务结果。完整远控同时提供脚本合并、压缩和版本化缓存。配置、签名不同时的并行安装方式见 [`android-companion/README.md`](android-companion/README.md)。
 
+Windows 并行版构建与安装：
+
+```powershell
+./scripts/build_companion_app.ps1 -ParallelInstall
+adb install -r android-companion/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 连接速度
+
+快捷页约 6 KB，不加载 noVNC，也不等待 VNC 密码握手。Companion 的完整远控页面将主脚本合并并 gzip 压缩到约 53 KB，使用版本化静态资源缓存，减少重复下载。这些优化不影响旧 Go 代理，实际等待时间仍取决于 Tailscale 网络路径和手机状态。
+
 ## 日常恢复
 
 如果隔夜后出现以下情况：
@@ -163,6 +201,10 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
 
 ## 必须知道的限制
 
+- 快捷操作需要无障碍服务保持开启；无密码锁屏可尝试自动唤醒，有密码时需手动解锁。
+- “已返回桌面”只确认应用打开与返回流程，不代表飞书内的业务结果。
+- Android 15 真机已验证唤醒、返回桌面和自动熄屏；其他机型及无人值守重启恢复仍需验证。快捷操作失败时可从页面进入完整远控检查。
+
 Android 的屏幕采集由系统 `MediaProjection` 权限控制。对于非 root、非设备所有者模式的普通手机，这个权限在重启、深度休眠、进程被杀或某些厂商省电策略触发后，可能需要用户再次确认。
 
 也就是说，本项目可以尽量让 Tailscale 和 droidVNC-NG 常驻，但不能保证所有 Android 机型都能永久无人值守地保持 `Screen Capturing = GRANTED`。
@@ -173,6 +215,7 @@ Android 的屏幕采集由系统 `MediaProjection` 权限控制。对于非 root
 | --- | --- |
 | `scripts/` | 安装、配置、恢复、检查、省电常驻脚本 |
 | `tools/android-novnc-proxy/` | Go 写的 WebSocket-to-VNC 代理源码 |
+| `android-companion/` | Android 快捷操作、设备配对、noVNC 前台服务 |
 | `docs/` | 架构、排障、开发说明和演示图 |
 | `QUICKSTART.zh-CN.md` | 最短中文启动流程 |
 | `GUIDE.zh-CN.md` | 完整中文实施指南 |
@@ -180,6 +223,7 @@ Android 的屏幕采集由系统 `MediaProjection` 权限控制。对于非 root
 | `README.en.md` | 英文 README |
 | `FILES.md` | 文件清单 |
 | `ACCEPTANCE.md` | 验收清单 |
+| `CHANGELOG.md` | 面向使用者的变更记录 |
 
 ## 核心脚本
 
@@ -207,6 +251,10 @@ Android 的屏幕采集由系统 `MediaProjection` 权限控制。对于非 root
 ## 参与贡献
 
 欢迎改进文档、兼容性、恢复流程和不同 Android 机型的经验。贡献前请看：[`CONTRIBUTING.md`](CONTRIBUTING.md) 与 [`docs/development.md`](docs/development.md)。
+
+## 参考项目
+
+[DailyTask](https://github.com/AndroidCoderPeng/DailyTask)
 
 ## License
 
