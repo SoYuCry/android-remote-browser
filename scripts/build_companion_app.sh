@@ -17,7 +17,10 @@ if [[ ! -d android-companion ]]; then
   exit 1
 fi
 
-./scripts/prepare_companion_assets.sh
+if [[ ! -f android-companion/app/src/main/assets/novnc/app/ui.js ]]; then
+  ./scripts/prepare_companion_assets.sh
+fi
+npm ci --no-audit --no-fund
 cd android-companion
 if [[ -x ./gradlew ]]; then
   ./gradlew assembleDebug

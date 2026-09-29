@@ -6,9 +6,27 @@ android {
 
     defaultConfig {
         applicationId 'io.github.soyucy.androidremote.companion'
+        if (project.hasProperty('parallelInstall')) applicationIdSuffix '.quick'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '0.1.0'
+        versionCode 2
+        versionName '0.2.0'
+        testInstrumentationRunner 'io.github.soyucy.androidremote.companion.QuickChecks'
+        buildConfigField 'int', 'HTTP_PORT', project.hasProperty('parallelInstall') ? '6081' : '6080'
+        resValue 'string', 'app_name', project.hasProperty('parallelInstall') ? '手机快捷操作' : 'Remote Browser Companion'
     }
+
+    buildFeatures { buildConfig true }
+
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/webAssets')
 }
+
+tasks.register('buildWebAssets', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'node', 'scripts/build_web_assets.mjs'
+    inputs.dir 'src/main/assets/novnc'
+    inputs.file '../../scripts/build_web_assets.mjs'
+    inputs.file '../../package-lock.json'
+    outputs.dir layout.buildDirectory.dir('generated/webAssets')
+}
+tasks.named('preBuild').configure { dependsOn 'buildWebAssets' }

@@ -2,6 +2,7 @@ package io.github.soyucy.androidremote.companion;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -67,7 +68,7 @@ public final class MainActivity extends Activity {
         root.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("守护 noVNC 6080 入口，并检查 Tailscale / droidVNC-NG 状态。不会执行第三方 App 自动化。 ");
+        subtitle.setText("提供快捷操作和完整远控入口。快捷操作会打开飞书 5 秒并返回桌面，屏幕保持原来的自动熄灭设置。");
         subtitle.setTextSize(14);
         subtitle.setTextColor(Color.rgb(90, 90, 90));
         subtitle.setPadding(0, dp(8), 0, dp(14));
@@ -92,7 +93,22 @@ public final class MainActivity extends Activity {
         buttons.setOrientation(LinearLayout.VERTICAL);
         buttons.setPadding(0, dp(16), 0, 0);
         root.addView(buttons);
-        buttons.addView(button("Restart 6080 Proxy", v -> { CompanionService.restart(this); toast("Restart requested"); handler.postDelayed(this::refresh, 700); }));
+        buttons.addView(button("复制快捷操作网址", v -> {
+            String host = lastStatus == null ? "" : (blank(lastStatus.tailscaleIp) ? lastStatus.wifiIp : lastStatus.tailscaleIp);
+            if (blank(host)) { toast("等待网络连接"); return; }
+            ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newPlainText("快捷操作", "http://" + host + ":" + ProxyServer.DEFAULT_HTTP_PORT + "/quick"));
+            toast("快捷操作网址已复制");
+        }));
+        buttons.addView(button("生成配对码", v -> new AlertDialog.Builder(this).setTitle("配对新设备")
+                .setMessage("配对码：" + PairingStore.get(this).createCode() + "\n\n5 分钟内有效，仅可使用一次。请在你自己的浏览器中输入。最多允许 5 次尝试。")
+                .setPositiveButton("关闭", null).show()));
+        buttons.addView(button("撤销所有已配对设备", v -> new AlertDialog.Builder(this).setTitle("撤销设备配对？")
+                .setMessage("所有浏览器都需要重新输入配对码。正在执行的操作会继续完成并返回桌面。")
+                .setNegativeButton("取消", null).setPositiveButton("撤销", (dialog, which) -> {
+                    toast(PairingStore.get(this).revokeAll() ? "已撤销所有设备" : "撤销失败，请重试"); refresh();
+                }).show()));
+        buttons.addView(button("Restart " + ProxyServer.DEFAULT_HTTP_PORT + " Proxy", v -> { CompanionService.restart(this); toast("Restart requested"); handler.postDelayed(this::refresh, 700); }));
         buttons.addView(button("Copy Safari URL", v -> copyUrl()));
         buttons.addView(button("Open droidVNC-NG", v -> openPackage(StatusChecker.DROIDVNC_PACKAGE)));
         buttons.addView(button("Open Tailscale", v -> openPackage(StatusChecker.TAILSCALE_PACKAGE)));
@@ -111,13 +127,15 @@ public final class MainActivity extends Activity {
     private void refresh() {
         lastStatus = StatusChecker.check(this, CompanionService.currentProxy());
         statusList.removeAllViews();
-        addRow("Companion proxy :6080", lastStatus.proxyRunning, lastStatus.proxyRunning ? "RUNNING" : "STOPPED");
+        addRow("Companion proxy :" + ProxyServer.DEFAULT_HTTP_PORT, lastStatus.proxyRunning, lastStatus.proxyRunning ? "RUNNING" : "STOPPED");
         addRow("droidVNC-NG installed", lastStatus.droidVncInstalled, lastStatus.droidVncInstalled ? "YES" : "NO");
         addRow("droidVNC 127.0.0.1:5900", lastStatus.vncReachable, lastStatus.vncReachable ? "REACHABLE" : "UNREACHABLE");
         addRow("Tailscale installed", lastStatus.tailscaleInstalled, lastStatus.tailscaleInstalled ? "YES" : "NO");
         addRow("Tailscale IP", lastStatus.tailscaleConnected(), blank(lastStatus.tailscaleIp) ? "NOT DETECTED" : lastStatus.tailscaleIp);
         addRow("Wi-Fi IP", !blank(lastStatus.wifiIp), blank(lastStatus.wifiIp) ? "NOT DETECTED" : lastStatus.wifiIp);
         addRow("Battery optimization", lastStatus.batteryIgnoringOptimizations, lastStatus.batteryIgnoringOptimizations ? "IGNORED" : "MAY LIMIT BACKGROUND");
+        addRow("快捷操作权限", QuickActionService.current() != null, QuickActionService.current() == null ? "请开启无障碍" : "已开启");
+        addRow("已配对浏览器", true, String.valueOf(PairingStore.get(this).count()));
         urlView.setText(blank(lastStatus.safariUrl) ? "等待 Tailscale 或 Wi-Fi IP..." : lastStatus.safariUrl);
         String note = "说明：Screen Capture / Input / Start on Boot 仍由 droidVNC-NG 和 Android 系统权限控制。" +
                 "如果网页能打开但画面黑或不可控，请打开 droidVNC-NG 检查权限面板。";

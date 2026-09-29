@@ -132,7 +132,7 @@ http://<ANDROID_TAILSCALE_IP>:6080/vnc.html?host=<ANDROID_TAILSCALE_IP>&port=608
 ./scripts/install_companion_app.sh --serial <ANDROID_SERIAL>
 ```
 
-第一版只守护远程控制链路，不包含第三方 App 定时打开或自动化操作。
+0.2 版增加配对后手动触发的快捷操作：唤醒手机、打开飞书 5 秒并返回桌面，保留原有自动熄屏设置；不执行应用内点击或判断业务结果。完整远控同时提供脚本合并、压缩和版本化缓存。配置、签名不同时的并行安装方式见 [`android-companion/README.md`](android-companion/README.md)。
 
 ## 日常恢复
 

@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Remote Browser Companion</string>
     <string name="notification_channel_name">Remote Browser Service</string>
+    <string name="quick_accessibility_description">在你点击已配对网页的按钮后，唤醒手机、打开飞书 5 秒并返回桌面。仅检查前台应用包名，不读取聊天内容、不点击飞书内的按钮。</string>
 </resources>
