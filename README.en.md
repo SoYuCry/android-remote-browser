@@ -14,13 +14,39 @@
   <img alt="Network: Tailscale" src="https://img.shields.io/badge/Network-Tailscale-6f42c1.svg">
 </p>
 
-Android Remote Browser is a small, practical toolkit for controlling an Android phone from an iPhone browser through a private Tailscale network. It combines **droidVNC-NG**, **noVNC**, and a lightweight Go WebSocket proxy that runs directly on Android.
+Android Remote Browser lets you operate your own Android phone from iPhone Safari over a private Tailscale network. Android Companion provides quick actions and full screen control; the original Go proxy remains available. Daily use does not require an always-connected computer or USB cable.
+
+## Choose an entry point
+
+| Need | Entry point | Authentication |
+| --- | --- | --- |
+| Briefly open Feishu, then return home | `/quick` | Pair once and remember this browser |
+| View the screen, tap, and swipe freely | `/vnc.html` | Existing droidVNC-NG password |
+
+The quick action **wakes the phone → opens Feishu → waits five seconds after confirming it is foreground → returns to the launcher**. It does not load a screen stream or return screenshots, and preserves the original automatic screen timeout.
+
+Quick actions require Companion, Tailscale, and Feishu. Full screen control additionally requires droidVNC-NG.
+
+### Quick-action setup
+
+1. Install and open Companion on Android; connect both phones to the same Tailscale network.
+2. Enable its quick-action accessibility service and allow background operation.
+3. Copy the quick-action URL from Companion and open it in iPhone Safari.
+4. Generate a six-digit pairing code on Android and enter it in Safari. Future visits from that browser can run the action directly.
+
+The default URL is `http://<ANDROID_TAILSCALE_IP>:6080/quick`. If the existing APK signing key is unavailable, the optional parallel installation uses a separate package and **port 6081**, preserving the existing 6080 service.
+
+Pairing codes expire after five minutes and can be used once. Forget a device from the browser or revoke all pairings on Android. Clearing browser storage or changing the URL origin requires pairing again. Quick-action credentials are separate from the VNC password.
+
+See the [Companion setup guide](android-companion/README.md) and [changelog](CHANGELOG.md).
+
+## Full screen-control path
 
 ```text
 iPhone Safari
   -> Tailscale private network
   -> Android <ANDROID_TAILSCALE_IP>:6080
-  -> android-novnc-proxy /websockify
+  -> Companion / Go proxy /websockify
   -> droidVNC-NG 127.0.0.1:5900
   -> Android screen + touch input
 ```
@@ -44,12 +70,15 @@ iPhone Safari
 | Android | droidVNC-NG, Tailscale, USB debugging for initial setup |
 | iPhone | Tailscale, Safari |
 | Mac/Linux host | `adb`, `python3`, `go`, USB access for setup/recovery |
+| Companion build host (Windows supported) | Node.js, JDK 17, Gradle 8.9, Android SDK, ADB |
 
 Daily iPhone control does **not** require the setup computer to stay online. The computer is mainly used to install/configure Android services and to recover the proxy if Android reboots or kills it.
 
 ## Quick start
 
 See [`QUICKSTART.zh-CN.md`](QUICKSTART.zh-CN.md) for the shortest Chinese setup path.
+
+The commands below deploy the original Go proxy. For quick actions, install Companion using the steps above; a separate Go proxy is not needed.
 
 ```bash
 # 1. Install droidVNC-NG onto an authorized Android device
@@ -84,9 +113,22 @@ Open that URL in iPhone Safari while both devices are connected to the same Tail
 1. **droidVNC-NG** captures and controls the Android screen through VNC on `127.0.0.1:5900`.
 2. **android-novnc-proxy** serves noVNC static assets and forwards `/websockify` WebSocket traffic to the local VNC server.
 3. **Tailscale** gives the Android phone a private `100.x.y.z` address reachable from your iPhone.
-4. **Safari** loads noVNC from `http://<ANDROID_TAILSCALE_IP>:6080/` and sends touch/mouse input back to Android.
+4. **Safari** loads noVNC from `http://<ANDROID_TAILSCALE_IP>:6080/vnc.html` and sends touch/mouse input back to Android.
 
 For more detail, see [`docs/architecture.md`](docs/architecture.md).
+
+## Android Companion and faster loading
+
+Companion runs the browser proxy as an Android foreground service and includes a status dashboard, boot receiver, and quick-action pairing. On Windows, build and install the parallel version with:
+
+```powershell
+./scripts/build_companion_app.ps1 -ParallelInstall
+adb install -r android-companion/app/build/outputs/apk/debug/app-debug.apk
+```
+
+The quick page is approximately 6 KB and skips noVNC loading and VNC authentication. Companion's full-control page bundles its main JavaScript into approximately 53 KB with gzip and uses versioned static asset caching. These changes do not modify the original Go proxy. Actual connection latency still depends on Tailscale routing and device state.
+
+Full build, installation, and permission details: [`android-companion/README.md`](android-companion/README.md).
 
 ## Daily operations
 
@@ -109,6 +151,8 @@ See [`RUNBOOK.zh-CN.md`](RUNBOOK.zh-CN.md) and [`docs/troubleshooting.md`](docs/
 
 ## Important limitation
 
+Quick actions require the accessibility service to remain enabled. An unsecured keyguard can be dismissed during wake; a password-protected device requires manual unlocking. A completed action confirms app launch and return to the launcher, not any business result inside Feishu. Wake, return, and automatic sleep have been tested on an Android 15 device; other OEMs and unattended reboot recovery still need validation.
+
 Android screen capture is controlled by the system MediaProjection permission. On non-root, non-device-owner devices, this permission may need user confirmation again after reboot, sleep, process death, or OEM battery-management events.
 
 This project can keep Tailscale/droidVNC as persistent as Android reasonably allows, but it cannot guarantee permanent unattended screen-capture permission on every phone/OEM build.
@@ -119,12 +163,14 @@ This project can keep Tailscale/droidVNC as persistent as Android reasonably all
 | --- | --- |
 | `scripts/` | Setup, recovery, diagnostics, and persistence scripts |
 | `tools/android-novnc-proxy/` | Go WebSocket-to-VNC proxy source |
+| `android-companion/` | Paired quick actions and Android foreground browser proxy |
 | `docs/` | Architecture, troubleshooting, development notes |
 | `QUICKSTART.zh-CN.md` | Short Chinese setup guide |
 | `GUIDE.zh-CN.md` | Full Chinese implementation guide |
 | `RUNBOOK.zh-CN.md` | Daily operations runbook |
 | `FILES.md` | Detailed file inventory |
 | `ACCEPTANCE.md` | Verification checklist |
+| `CHANGELOG.md` | User-facing change history |
 
 ## Core scripts
 
@@ -152,6 +198,10 @@ Never expose ADB (`5555`), VNC (`5900`), or noVNC (`6080`) directly to the publi
 ## Contributing
 
 Contributions are welcome if they improve clarity, portability, safety, or recovery reliability. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/development.md`](docs/development.md).
+
+## Reference
+
+[DailyTask](https://github.com/AndroidCoderPeng/DailyTask)
 
 ## License
 

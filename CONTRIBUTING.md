@@ -15,6 +15,7 @@ Good contributions include:
 - Do not submit real VNC passwords, Tailscale IPs, device serial numbers, private logs, APK caches, or generated binaries.
 - Use placeholders such as `<ANDROID_SERIAL>` and `<ANDROID_TAILSCALE_IP>` in examples.
 - Keep remote-control features scoped to authorized self-owned/administered devices.
+- Record user-visible features, fixes, and compatibility changes under `CHANGELOG.md` → `Unreleased`; move entries into a dated section when publishing a release.
 - Do not add instructions for evading workplace/app rules, misrepresenting location/presence, or exposing ADB/VNC publicly.
 
 ## Before opening a PR
