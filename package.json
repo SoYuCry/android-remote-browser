@@ -1,0 +1,6 @@
+{
+  "name": "android-remote-browser-build",
+  "private": true,
+  "scripts": { "build:web": "node scripts/build_web_assets.mjs" },
+  "devDependencies": { "esbuild": "0.25.10" }
+}

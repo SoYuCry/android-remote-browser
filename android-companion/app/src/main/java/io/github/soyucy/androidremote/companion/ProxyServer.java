@@ -1,6 +1,8 @@
 package io.github.soyucy.androidremote.companion;
 
 import android.content.res.AssetManager;
+import android.content.Context;
+import org.json.JSONObject;
 import android.util.Log;
 
 import java.io.BufferedInputStream;
@@ -25,7 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class ProxyServer implements Closeable {
-    static final int DEFAULT_HTTP_PORT = 6080;
+    static final int DEFAULT_HTTP_PORT = BuildConfig.HTTP_PORT;
     static final String DEFAULT_VNC_HOST = "127.0.0.1";
     static final int DEFAULT_VNC_PORT = 5900;
 
@@ -34,6 +36,9 @@ final class ProxyServer implements Closeable {
     private static final int MAX_FRAME = 16 * 1024 * 1024;
 
     private final AssetManager assets;
+    private final PairingStore pairing;
+    private final QuickActionController actions;
+    private final String assetVersion;
     private final int listenPort;
     private final String vncHost;
     private final int vncPort;
@@ -43,8 +48,13 @@ final class ProxyServer implements Closeable {
     private Thread acceptThread;
     private volatile String lastError = "";
 
-    ProxyServer(AssetManager assets, int listenPort, String vncHost, int vncPort) {
-        this.assets = assets;
+    ProxyServer(Context context, int listenPort, String vncHost, int vncPort) {
+        this.assets = context.getAssets();
+        this.pairing = PairingStore.get(context);
+        this.actions = QuickActionController.get(context);
+        try (InputStream version = assets.open("novnc-fast/version.txt")) {
+            this.assetVersion = new String(readAll(version), StandardCharsets.UTF_8).trim();
+        } catch (IOException e) { throw new IllegalStateException("Build web assets before compiling", e); }
         this.listenPort = listenPort;
         this.vncHost = vncHost;
         this.vncPort = vncPort;
@@ -88,7 +98,9 @@ final class ProxyServer implements Closeable {
             OutputStream out = new BufferedOutputStream(c.getOutputStream());
             HttpRequest req = readRequest(in);
             if (req == null) return;
-            if ("/websockify".equals(req.path)) {
+            if (req.path.startsWith("/api/")) {
+                handleApi(req, in, out);
+            } else if ("/websockify".equals(req.path)) {
                 handleWebSocket(req, in, out, c);
             } else {
                 handleStatic(req, out);
@@ -101,8 +113,9 @@ final class ProxyServer implements Closeable {
     }
 
     private void handleStatic(HttpRequest req, OutputStream out) throws IOException {
+        if (!"GET".equals(req.method)) { writeStatus(out, 405, "Method Not Allowed", "GET required"); return; }
         if ("/".equals(req.path)) {
-            writeText(out, "HTTP/1.1 302 Found\r\nLocation: /vnc.html\r\nContent-Length: 0\r\n\r\n");
+            writeText(out, "HTTP/1.1 302 Found\r\nLocation: /quick\r\nCache-Control: no-store\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
             return;
         }
         String clean = normalizePath(req.path);
@@ -110,15 +123,87 @@ final class ProxyServer implements Closeable {
             writeStatus(out, 404, "Not Found", "not found");
             return;
         }
+        boolean immutable = clean.startsWith("static/" + assetVersion + "/");
+        if (clean.startsWith("static/") && !immutable) { writeStatus(out, 404, "Not Found", "asset version expired; reload page"); return; }
+        if (immutable) clean = clean.substring(("static/" + assetVersion + "/").length());
         String assetPath = ASSET_ROOT + "/" + clean;
+        if ("quick".equals(clean)) assetPath = "quick.html";
+        else if ("vnc.html".equals(clean)) assetPath = "novnc-fast/vnc.html";
+        else if ("app/ui.bundle.js".equals(clean)) assetPath = "novnc-fast/ui.bundle.js";
+        boolean gzip = "app/ui.bundle.js".equals(clean) && acceptsGzip(req.headers.getOrDefault("accept-encoding", ""));
+        if (gzip) assetPath = "novnc-fast/ui.bundle.gzip.bin";
         try (InputStream asset = assets.open(assetPath)) {
             byte[] body = readAll(asset);
-            String type = contentType(clean);
-            writeText(out, "HTTP/1.1 200 OK\r\nContent-Type: " + type + "\r\nContent-Length: " + body.length + "\r\nCache-Control: no-store\r\n\r\n");
+            String type = "quick".equals(clean) ? "text/html; charset=utf-8" : contentType(clean);
+            String cache = immutable ? "private, max-age=31536000, immutable" : "no-store";
+            String extra = "app/ui.bundle.js".equals(clean) ? "Vary: Accept-Encoding\r\n" : "";
+            if (gzip) extra += "Content-Encoding: gzip\r\n";
+            if ("quick".equals(clean)) extra += "Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'\r\n";
+            writeText(out, "HTTP/1.1 200 OK\r\nContent-Type: " + type + "\r\nContent-Length: " + body.length + "\r\nCache-Control: " + cache + "\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\n" + extra + "\r\n");
             out.write(body);
         } catch (IOException e) {
             writeStatus(out, 404, "Not Found", "noVNC asset missing: " + clean + "\nRun scripts/prepare_companion_assets.sh before building the APK.\n");
         }
+    }
+
+    private static boolean acceptsGzip(String header) {
+        for (String item : header.split(",")) {
+            String[] parts = item.trim().split(";", 2);
+            if ("gzip".equalsIgnoreCase(parts[0].trim()) && (parts.length == 1 || !parts[1].trim().matches("q=0(?:\\.0*)?"))) return true;
+        }
+        return false;
+    }
+
+    int listeningPort() { return serverSocket.getLocalPort(); }
+
+    private void handleApi(HttpRequest req, InputStream in, OutputStream out) throws IOException {
+        // Custom header + no CORS prevents cross-site form/fetch requests, even during local pairing.
+        String origin = req.headers.get("origin");
+        String host = req.headers.get("host");
+        if (!"1".equals(req.headers.get("x-remote-client")) || (origin != null && !origin.equals("http://" + host))) {
+            writeJson(out, 403, "Forbidden", "{\"error\":\"请求来源不受支持\"}"); return;
+        }
+        boolean pair = "/api/pair".equals(req.path);
+        if (!pair && !pairing.authorized(req.headers.get("authorization"))) {
+            writeJson(out, 401, "Unauthorized", "{\"error\":\"请先配对此设备\"}"); return;
+        }
+        if ("/api/status".equals(req.path) && "GET".equals(req.method)) {
+            writeJson(out, 200, "OK", actions.status().toString()); return;
+        }
+        if (!"POST".equals(req.method)) { writeJson(out, 405, "Method Not Allowed", "{\"error\":\"不支持的请求方式\"}"); return; }
+        if ("/api/unpair".equals(req.path)) {
+            if (pairing.revoke(req.headers.get("authorization"))) writeJson(out, 200, "OK", "{}");
+            else writeJson(out, 500, "Internal Server Error", "{\"error\":\"撤销失败，请重试\"}");
+            return;
+        }
+        if (!pair && !"/api/run".equals(req.path)) { writeJson(out, 404, "Not Found", "{}"); return; }
+        try {
+            if (req.headers.containsKey("transfer-encoding") || !req.headers.getOrDefault("content-type", "").startsWith("application/json")) throw new IOException("invalid body");
+            int length = Integer.parseInt(req.headers.getOrDefault("content-length", "0"));
+            if (length < 2 || length > 1024) throw new IOException("invalid length");
+            byte[] bytes = new byte[length];
+            readFully(in, bytes, length);
+            JSONObject body = new JSONObject(new String(bytes, StandardCharsets.UTF_8));
+            if (pair) {
+                String token = pairing.pair(body.optString("code", ""));
+                if (token == null) writeJson(out, 403, "Forbidden", "{\"error\":\"配对码错误、过期或尝试次数过多，请在手机上重新生成\"}");
+                else writeJson(out, 200, "OK", new JSONObject().put("token", token).toString());
+            } else {
+                String id = body.optString("requestId", "");
+                if (!id.matches("[a-zA-Z0-9_-]{16,80}")) throw new IOException("invalid request ID");
+                int result = actions.start(id);
+                JSONObject status = actions.status();
+                if (result == 409) status.put("error", "已有操作正在执行，请稍候");
+                if (result == 412) status.put("error", "请在手机开启快捷操作无障碍权限，并确认飞书已安装");
+                writeJson(out, result, result < 300 ? "OK" : "Conflict", status.toString());
+            }
+        } catch (Exception e) { writeJson(out, 400, "Bad Request", "{\"error\":\"请求格式错误\"}"); }
+    }
+
+    private static void writeJson(OutputStream out, int code, String reason, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        writeText(out, "HTTP/1.1 " + code + " " + reason + "\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: " + bytes.length + "\r\nCache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n");
+        out.write(bytes);
     }
 
     private void handleWebSocket(HttpRequest req, InputStream in, OutputStream out, Socket client) throws Exception {
@@ -193,7 +278,10 @@ final class ProxyServer implements Closeable {
         req.method = parts[0];
         req.path = stripQuery(parts[1]);
         String line;
+        int headerBytes = 0;
         while ((line = readLine(in)) != null && !line.isEmpty()) {
+            headerBytes += line.length();
+            if (headerBytes > 32768) throw new IOException("headers too large");
             int idx = line.indexOf(':');
             if (idx > 0) {
                 req.headers.put(line.substring(0, idx).trim().toLowerCase(Locale.ROOT), line.substring(idx + 1).trim());

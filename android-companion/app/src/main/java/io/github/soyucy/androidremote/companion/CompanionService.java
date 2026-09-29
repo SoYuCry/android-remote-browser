@@ -89,7 +89,7 @@ public final class CompanionService extends Service {
     private synchronized void ensureProxy() {
         try {
             if (proxy == null) {
-                proxy = new ProxyServer(getAssets(), ProxyServer.DEFAULT_HTTP_PORT, ProxyServer.DEFAULT_VNC_HOST, ProxyServer.DEFAULT_VNC_PORT);
+                proxy = new ProxyServer(this, ProxyServer.DEFAULT_HTTP_PORT, ProxyServer.DEFAULT_VNC_HOST, ProxyServer.DEFAULT_VNC_PORT);
             }
             if (!proxy.isRunning()) proxy.start();
         } catch (Exception ignored) {
@@ -114,7 +114,7 @@ public final class CompanionService extends Service {
         PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         String text;
         if (status.proxyRunning && status.vncReachable && status.tailscaleConnected()) {
-            text = "Running: " + status.tailscaleIp + ":6080";
+            text = "Running: " + status.tailscaleIp + ":" + ProxyServer.DEFAULT_HTTP_PORT;
         } else if (!status.proxyRunning) {
             text = "Proxy stopped; watchdog will retry";
         } else if (!status.vncReachable) {

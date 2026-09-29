@@ -29,11 +29,16 @@ final class StatusChecker {
         s.vncReachable = canConnect("127.0.0.1", ProxyServer.DEFAULT_VNC_PORT, 800);
         s.batteryIgnoringOptimizations = isIgnoringBatteryOptimizations(context);
         if (s.tailscaleConnected()) {
-            s.safariUrl = "http://" + s.tailscaleIp + ":6080/vnc.html?host=" + s.tailscaleIp + "&port=6080&path=websockify&encrypt=0&autoconnect=true";
+            s.safariUrl = vncUrl(s.tailscaleIp);
         } else if (s.wifiIp != null && !s.wifiIp.isEmpty()) {
-            s.safariUrl = "http://" + s.wifiIp + ":6080/vnc.html?host=" + s.wifiIp + "&port=6080&path=websockify&encrypt=0&autoconnect=true";
+            s.safariUrl = vncUrl(s.wifiIp);
         }
         return s;
+    }
+
+    private static String vncUrl(String host) {
+        int port = ProxyServer.DEFAULT_HTTP_PORT;
+        return "http://" + host + ":" + port + "/vnc.html?host=" + host + "&port=" + port + "&path=websockify&encrypt=0&autoconnect=true";
     }
 
     static boolean isInstalled(Context context, String pkg) {

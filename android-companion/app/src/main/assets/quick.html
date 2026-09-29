@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>手机快捷操作</title>
+<style>
+:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#182335;background:#f3f5f8}body{margin:0;padding:32px 20px}main{max-width:420px;margin:5vh auto}h1{font-size:28px;margin-bottom:10px}p{line-height:1.7;color:#526174}.card{background:white;border-radius:20px;padding:24px;margin:24px 0;box-shadow:0 6px 30px #19304b0a}button,input{box-sizing:border-box;width:100%;font:inherit;border-radius:12px;padding:15px;margin-top:12px}button{border:0;background:#1765df;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:default}input{border:1px solid #cdd6e1;font-size:24px;letter-spacing:8px;text-align:center}.secondary{background:#eaf0f8;color:#314c70}a{color:#235baf;text-decoration:none}#status{min-height:54px;white-space:pre-line}small{color:#6d7b8c;line-height:1.6}[hidden]{display:none!important}
+</style></head><body><main>
+<small>ANDROID REMOTE</small><h1>手机快捷操作</h1><p>打开飞书，停留 5 秒后返回桌面。<br>屏幕仍按原设置自动熄灭。</p>
+<section class="card" id="pairPanel" hidden><strong>首次连接，配对此设备</strong><p>在安卓 Companion 中点击“生成配对码”，输入显示的 6 位数字。</p><form id="pairForm"><input id="code" aria-label="配对码" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required><button id="pairButton">配对并记住设备</button></form><small>请使用普通浏览模式；清除浏览器数据后需重新配对。</small></section>
+<section class="card" id="actionPanel" hidden><button id="runButton" disabled>打开飞书一次</button><button class="secondary" id="refreshButton">刷新状态</button><p id="status" role="status" aria-live="polite">正在连接…</p><small>仅确认打开与返回桌面，不判断飞书内的业务结果。</small></section>
+<p id="error" role="alert"></p><p><a href="/vnc.html?autoconnect=true&amp;resize=scale">打开完整远控 →</a></p><button class="secondary" id="forgetButton" hidden>忘记此设备</button>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+let token='',timer,busy=false,pendingId='';
+try{token=localStorage.getItem('remote-device-token')||'';pendingId=localStorage.getItem('remote-pending-id')||'';}catch{}
+function showPair(){clearTimeout(timer);$('pairPanel').hidden=false;$('actionPanel').hidden=true;$('forgetButton').hidden=true;}
+function showActions(){$('pairPanel').hidden=true;$('actionPanel').hidden=false;$('forgetButton').hidden=false;}
+async function api(path,body){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);try{const response=await fetch('/api/'+path,{method:body?'POST':'GET',headers:{'X-Remote-Client':'1',...(token?{Authorization:'Bearer '+token}:{}),...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:controller.signal});const data=await response.json();if(response.status===401){token='';try{localStorage.removeItem('remote-device-token');}catch{}showPair();}if(!response.ok)throw Error(data.error||'请求失败，请刷新状态');return data;}catch(e){if(e.name==='AbortError')throw Error('连接超时，请确认两端 Tailscale 已连接');throw e;}finally{clearTimeout(timeout);}}
+function render(s){showActions();$('status').textContent=s.message;if(!s.accessibility)$('status').textContent+='\n请在安卓端开启快捷操作无障碍权限。';if(!s.installed)$('status').textContent+='\n手机未安装飞书。';$('runButton').disabled=busy||s.running||!s.accessibility||!s.installed;if(pendingId&&s.requestId===pendingId){pendingId='';try{localStorage.removeItem('remote-pending-id');}catch{}}$('runButton').textContent=s.running?'正在执行…':pendingId?'确认上次请求／重试':'打开飞书一次';clearTimeout(timer);if(s.running)timer=setTimeout(refresh,800);}
+async function refresh(){clearTimeout(timer);try{$('error').textContent='';render(await api('status'));}catch(e){$('error').textContent=e.message;$('runButton').disabled=true;}}
+$('pairForm').onsubmit=async e=>{e.preventDefault();$('pairButton').disabled=true;try{const data=await api('pair',{code:$('code').value.trim()});token=data.token;try{localStorage.setItem('remote-device-token',token);}catch{throw Error('浏览器无法保存设备凭证，请允许网站存储');}$('code').value='';await refresh();}catch(e){$('error').textContent=e.message;}finally{$('pairButton').disabled=false;}};
+$('runButton').onclick=async()=>{if(busy)return;busy=true;$('runButton').disabled=true;clearTimeout(timer);try{$('error').textContent='';if(!pendingId){const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);pendingId=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem('remote-pending-id',pendingId);}const data=await api('run',{requestId:pendingId});busy=false;render(data);}catch(e){$('error').textContent=e.message+'。请求可能已送达，请先刷新状态。';}finally{busy=false;}};
+$('refreshButton').onclick=refresh;
+$('forgetButton').onclick=async()=>{try{await api('unpair',{});token='';pendingId='';try{localStorage.removeItem('remote-device-token');localStorage.removeItem('remote-pending-id');}catch{}$('error').textContent='已撤销此设备配对。';showPair();}catch(e){$('error').textContent=e.message;}};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(timer);else if(token)refresh();});
+if(token){showActions();refresh();}else showPair();
+</script></body></html>
