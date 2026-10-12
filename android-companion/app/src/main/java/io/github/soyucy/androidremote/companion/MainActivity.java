@@ -28,6 +28,8 @@ public final class MainActivity extends Activity {
     private LinearLayout statusList;
     private TextView urlView;
     private TextView noteView;
+    private TextView scheduleView;
+    private Button scheduleToggle;
     private StatusSnapshot lastStatus;
     private final Runnable refreshTask = new Runnable() {
         @Override public void run() {
@@ -45,6 +47,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        TaskScheduler.get(this).reconcile(false);
         refreshTask.run();
     }
 
@@ -73,6 +76,22 @@ public final class MainActivity extends Activity {
         subtitle.setTextColor(Color.rgb(90, 90, 90));
         subtitle.setPadding(0, dp(8), 0, dp(14));
         root.addView(subtitle);
+
+        scheduleView = label("");
+        root.addView(scheduleView);
+        scheduleToggle = button("", v -> {
+            TaskScheduler scheduler = TaskScheduler.get(this);
+            scheduler.setEnabled(!scheduler.enabled());
+            refresh();
+            if (scheduler.enabled() && !scheduler.permitted() && Build.VERSION.SDK_INT >= 31) {
+                startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName())));
+            }
+        });
+        root.addView(scheduleToggle);
+        root.addView(button("定时任务：闹钟和提醒权限", v -> {
+            if (Build.VERSION.SDK_INT >= 31) startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName())));
+            else toast("当前系统无需单独授权");
+        }));
 
         statusList = new LinearLayout(this);
         statusList.setOrientation(LinearLayout.VERTICAL);
@@ -125,6 +144,9 @@ public final class MainActivity extends Activity {
     }
 
     private void refresh() {
+        TaskScheduler scheduler = TaskScheduler.get(this);
+        scheduleView.setText(scheduler.description());
+        scheduleToggle.setText(scheduler.enabled() ? "关闭工作日自动任务" : "开启工作日自动任务");
         lastStatus = StatusChecker.check(this, CompanionService.currentProxy());
         statusList.removeAllViews();
         addRow("Companion proxy :" + ProxyServer.DEFAULT_HTTP_PORT, lastStatus.proxyRunning, lastStatus.proxyRunning ? "RUNNING" : "STOPPED");

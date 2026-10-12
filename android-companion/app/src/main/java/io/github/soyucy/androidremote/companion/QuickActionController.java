@@ -41,6 +41,7 @@ final class QuickActionController {
             state = "failed";
             message = "上次操作因服务重启中断，未确认返回桌面";
             save();
+            recordScheduledResult(requestId, message);
         }
     }
     synchronized JSONObject status() {
@@ -127,6 +128,11 @@ final class QuickActionController {
         wakeLock = null;
         running = false;
         update(next, text);
+        recordScheduledResult(requestId, text);
+    }
+    private void recordScheduledResult(String id, String text) {
+        // HTTP starts hold the controller monitor; do not acquire the scheduler monitor here.
+        new Handler(Looper.getMainLooper()).post(() -> TaskScheduler.get(context).record(id, text));
     }
     private void save() {
         prefs.edit().putBoolean("running", running).putString("requestId", requestId).putString("state", state).putString("message", message).commit();
