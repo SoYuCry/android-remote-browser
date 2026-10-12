@@ -18,6 +18,8 @@ Android Remote Browser lets you operate your own Android phone from iPhone Safar
 
 ## Choose an entry point
 
+**Weekday schedule (0.3):** enable it in Companion to run the Feishu launch-and-return action once at a random time between 17:45 and 18:05, Monday–Friday in `Asia/Shanghai`. It requires alarms/reminders access and the accessibility service. The original screen timeout is preserved. Missed windows are skipped; public holidays are not excluded. The Android dashboard shows the next run, latest result, and an off switch.
+
 | Need | Entry point | Authentication |
 | --- | --- | --- |
 | Briefly open Feishu, then return home | `/quick` | Pair once and remember this browser |

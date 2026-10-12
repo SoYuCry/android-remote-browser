@@ -6,6 +6,8 @@ import android.content.Intent;
 
 public final class BootReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
-        CompanionService.start(context);
+        TaskScheduler.get(context).reconcile(false);
+        try { CompanionService.start(context); }
+        catch (RuntimeException ignored) { /* The persisted alarm remains scheduled. */ }
     }
 }

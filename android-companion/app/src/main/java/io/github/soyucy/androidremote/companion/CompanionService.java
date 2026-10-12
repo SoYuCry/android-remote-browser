@@ -25,6 +25,7 @@ public final class CompanionService extends Service {
     private final Runnable watchdog = new Runnable() {
         @Override public void run() {
             ensureProxy();
+            TaskScheduler.get(CompanionService.this).reconcile(true);
             updateNotification();
             handler.postDelayed(this, 60_000);
         }
@@ -74,6 +75,7 @@ public final class CompanionService extends Service {
             ensureProxy();
         }
         updateNotification();
+        TaskScheduler.get(this).reconcile(true);
         return START_STICKY;
     }
 
