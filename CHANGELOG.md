@@ -21,6 +21,8 @@ User-visible changes are recorded here. Keep new work under **Unreleased**; move
 
 ### Changed
 
+- Rename the user-facing schedule permission to “定时执行权限” and clarify that status is shown inside the Android Companion app.
+
 - Companion bundles and gzip-compresses noVNC JavaScript and caches static resources using versioned URLs. HTML and API responses remain uncached.
 - Companion's root URL opens the quick-action page; full screen control remains available at `/vnc.html` with its existing VNC authentication.
 - Chinese and English READMEs explain both entry points, first-time pairing, screen behavior, parallel installation, and connection-speed expectations.

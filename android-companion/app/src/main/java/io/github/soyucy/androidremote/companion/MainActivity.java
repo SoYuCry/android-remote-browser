@@ -88,7 +88,7 @@ public final class MainActivity extends Activity {
             }
         });
         root.addView(scheduleToggle);
-        root.addView(button("定时任务：闹钟和提醒权限", v -> {
+        root.addView(button("定时执行权限", v -> {
             if (Build.VERSION.SDK_INT >= 31) startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName())));
             else toast("当前系统无需单独授权");
         }));

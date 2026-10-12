@@ -39,7 +39,7 @@ final class TaskScheduler {
     synchronized void reconcile(boolean allowRun) {
         error = "";
         if (!enabled()) { alarms.cancel(alarm()); return; }
-        if (!permitted()) { error = "请允许闹钟和提醒权限"; return; }
+        if (!permitted()) { error = "请开启定时执行权限"; return; }
         long now = System.currentTimeMillis();
         long due = prefs.getLong("due", 0);
         String handled = prefs.getString("handled", "");
@@ -58,7 +58,7 @@ final class TaskScheduler {
                     error = "等待快捷操作无障碍服务；窗口结束后跳过";
                     try { alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
                             Math.min(now + 60_000, ScheduleWindow.end(ScheduleWindow.date(now))), alarm()); }
-                    catch (SecurityException e) { error = "请允许闹钟和提醒权限"; }
+                    catch (SecurityException e) { error = "请开启定时执行权限"; }
                     return;
                 }
                 // Claim before launching: process death cannot replay a partially completed action.
@@ -75,7 +75,7 @@ final class TaskScheduler {
             if (!prefs.edit().putLong("due", due).commit()) { error = "保存执行时间失败"; return; }
         }
         try { alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, Math.max(due, now + 1000), alarm()); }
-        catch (SecurityException e) { error = "请允许闹钟和提醒权限"; }
+        catch (SecurityException e) { error = "请开启定时执行权限"; }
     }
     synchronized void record(String id, String result) {
         if (!id.startsWith("schedule-")) return;
@@ -86,7 +86,7 @@ final class TaskScheduler {
         String next = prefs.getLong("due", 0) == 0 ? "待安排" : FORMAT.format(Instant.ofEpochMilli(prefs.getLong("due", 0)));
         return (enabled() ? "已开启" : "已关闭") + " · 北京时间周一至周五 17:45–18:05，每天随机一次\n"
                 + (enabled() ? "下次：" + next + "\n" : "")
-                + (!error.isEmpty() ? error + "\n" : enabled() && !permitted() ? "请允许闹钟和提醒权限\n" : "")
+                + (!error.isEmpty() ? error + "\n" : enabled() && !permitted() ? "请开启定时执行权限\n" : "")
                 + "最近结果：" + prefs.getString("last", "暂无") + "\n按星期执行，不排除法定节假日；错过窗口不补执行。";
     }
 }
