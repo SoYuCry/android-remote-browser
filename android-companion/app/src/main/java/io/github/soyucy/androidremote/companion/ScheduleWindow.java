@@ -15,7 +15,7 @@ final class ScheduleWindow {
     static String normalize(String handled) { return handled.length() == 10 ? handled + "/1" : handled; }
     static long end(long time) { return end(date(time), slot(time)); }
     static boolean sameWindow(long due, long now) { return key(due).equals(key(now)) && inWindow(now); }
-    static boolean weekday(LocalDate day) { return day.getDayOfWeek().getValue() <= 5; }
+    static boolean weekday(LocalDate day) { return WorkCalendar.working(day); }
     static boolean inWindow(long now) {
         LocalDate day = date(now);
         int slot = slot(now);
@@ -24,7 +24,7 @@ final class ScheduleWindow {
     static long next(long now, String handledThrough, Random random) {
         LocalDate day = date(now);
         handledThrough = normalize(handledThrough);
-        while (true) {
+        while (WorkCalendar.supported(day)) {
             if (weekday(day)) for (int slot = 0; slot < 2; slot++) {
                 if ((day + "/" + slot).compareTo(handledThrough) <= 0) continue;
                 long earliest = Math.max(start(day, slot), ((now + 999) / 1000) * 1000);
@@ -34,5 +34,6 @@ final class ScheduleWindow {
             }
             day = day.plusDays(1);
         }
+        return 0; // No published calendar: do not guess or loop across unknown years.
     }
 }

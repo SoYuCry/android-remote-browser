@@ -7,7 +7,7 @@ if (-not $jdkRoot) {
 if (-not $jdkRoot) { throw 'Set JAVA_HOME to JDK 17.' }
 $testOutput = Join-Path ([IO.Path]::GetTempPath()) ('schedule-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testOutput | Out-Null
-& "$jdkRoot\bin\javac.exe" -d $testOutput "$repoRoot\android-companion\app\src\main\java\io\github\soyucy\androidremote\companion\ScheduleWindow.java" "$PSScriptRoot\ScheduleWindowTest.java"
+& "$jdkRoot\bin\javac.exe" -d $testOutput "$repoRoot\android-companion\app\src\main\java\io\github\soyucy\androidremote\companion\ScheduleWindow.java" "$repoRoot\android-companion\app\src\main\java\io\github\soyucy\androidremote\companion\WorkCalendar.java" "$PSScriptRoot\ScheduleWindowTest.java"
 if ($LASTEXITCODE -ne 0) { throw 'Schedule test compilation failed' }
 & "$jdkRoot\bin\java.exe" -cp $testOutput io.github.soyucy.androidremote.companion.ScheduleWindowTest
 if ($LASTEXITCODE -ne 0) { throw 'Schedule test failed' }

@@ -18,7 +18,7 @@ Android Remote Browser lets you operate your own Android phone from iPhone Safar
 
 ## Choose an entry point
 
-**Weekday schedule (0.3):** enable it in Companion to run the Feishu launch-and-return action once in each of two random windows, 08:35–08:50 and 17:50–18:05, Monday–Friday in `Asia/Shanghai`. It requires scheduled-execution permission and the accessibility service. The original screen timeout is preserved. Missed windows are skipped; public holidays are not excluded. The Android Companion app shows the next run, latest result, and an off switch.
+**Weekday schedule (0.3):** enable it in Companion to run the Feishu launch-and-return action once in each of two random windows, 08:35–08:50 and 17:50–18:05, on mainland China working days in `Asia/Shanghai`. It requires scheduled-execution permission and the accessibility service. The original screen timeout is preserved. Missed windows are skipped; official days off are excluded and weekend makeup workdays are included. The bundled calendar covers 2026; later years require an app update, and automatic tasks pause when calendar data is missing. The Android Companion app shows the next run, latest result, and an off switch.
 
 | Need | Entry point | Authentication |
 | --- | --- | --- |

@@ -47,7 +47,7 @@ final class TaskScheduler {
         // Upgrade once: retain an existing afternoon appointment unless a morning window comes first.
         if (!prefs.getBoolean("two_windows", false)) {
             long candidate = ScheduleWindow.next(now, handled, new SecureRandom());
-            if (due == 0 || (candidate < due && !ScheduleWindow.key(candidate).equals(ScheduleWindow.key(due)))) due = candidate;
+            if (candidate != 0 && (due == 0 || (candidate < due && !ScheduleWindow.key(candidate).equals(ScheduleWindow.key(due))))) due = candidate;
             if (!prefs.edit().putBoolean("two_windows", true).putString("handled", handled)
                     .putLong("due", due).commit()) { error = "保存任务状态失败"; return; }
         }
@@ -81,6 +81,11 @@ final class TaskScheduler {
             due = ScheduleWindow.next(now, handled, new SecureRandom());
             if (!prefs.edit().putLong("due", due).commit()) { error = "保存执行时间失败"; return; }
         }
+        if (due == 0) {
+            alarms.cancel(alarm());
+            error = "后续工作日日历待更新，自动任务暂停";
+            return;
+        }
         try { alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, Math.max(due, now + 1000), alarm()); }
         catch (SecurityException e) { error = "请开启定时执行权限"; }
     }
@@ -95,9 +100,9 @@ final class TaskScheduler {
     }
     synchronized String description() {
         String next = prefs.getLong("due", 0) == 0 ? "待安排" : FORMAT.format(Instant.ofEpochMilli(prefs.getLong("due", 0)));
-        return (enabled() ? "已开启" : "已关闭") + " · 北京时间周一至周五 08:35–08:50、17:50–18:05，每个时段随机一次\n"
+        return (enabled() ? "已开启" : "已关闭") + " · 北京时间中国大陆工作日 08:35–08:50、17:50–18:05，每个时段随机一次\n"
                 + (enabled() ? "下次：" + next + "\n" : "")
                 + (!error.isEmpty() ? error + "\n" : enabled() && !permitted() ? "请开启定时执行权限\n" : "")
-                + "最近结果：" + prefs.getString("last", "暂无") + "\n按星期执行，不排除法定节假日；错过窗口不补执行。";
+                + "最近结果：" + prefs.getString("last", "暂无") + "\n按2026年官方日历排除放假日，调休上班日照常执行；错过窗口不补执行。";
     }
 }
