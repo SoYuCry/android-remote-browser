@@ -10,7 +10,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
-/** One persisted random appointment and at most one automatic attempt per weekday. */
+/** One persisted random appointment and at most one automatic attempt per weekday window. */
 final class TaskScheduler {
     private static TaskScheduler instance;
     private final Context context;
@@ -42,13 +42,20 @@ final class TaskScheduler {
         if (!permitted()) { error = "请开启定时执行权限"; return; }
         long now = System.currentTimeMillis();
         long due = prefs.getLong("due", 0);
-        String handled = prefs.getString("handled", "");
-        if (due != 0 && ScheduleWindow.date(due).toString().compareTo(handled) <= 0) due = 0;
+        String handled = ScheduleWindow.normalize(prefs.getString("handled", ""));
+        if (due != 0 && (!ScheduleWindow.inWindow(due) || ScheduleWindow.key(due).compareTo(handled) <= 0)) due = 0;
+        // Upgrade once: retain an existing afternoon appointment unless a morning window comes first.
+        if (!prefs.getBoolean("two_windows", false)) {
+            long candidate = ScheduleWindow.next(now, handled, new SecureRandom());
+            if (due == 0 || (candidate < due && !ScheduleWindow.key(candidate).equals(ScheduleWindow.key(due)))) due = candidate;
+            if (!prefs.edit().putBoolean("two_windows", true).putString("handled", handled)
+                    .putLong("due", due).commit()) { error = "保存任务状态失败"; return; }
+        }
         if (due != 0 && now >= due) {
-            String day = ScheduleWindow.date(due).toString();
-            if (!day.equals(ScheduleWindow.date(now).toString()) || !ScheduleWindow.inWindow(now)) {
+            String day = ScheduleWindow.key(due);
+            if (!ScheduleWindow.sameWindow(due, now)) {
                 if (!prefs.edit().putString("handled", day).putLong("due", 0)
-                        .putString("last", day + " 已错过窗口，未补执行").commit()) { error = "保存任务状态失败"; return; }
+                        .putString("last", label(day) + " 已错过窗口，未补执行").commit()) { error = "保存任务状态失败"; return; }
                 handled = day;
                 due = 0;
             } else if (allowRun) {
@@ -57,13 +64,13 @@ final class TaskScheduler {
                 if (QuickActionService.current() == null) {
                     error = "等待快捷操作无障碍服务；窗口结束后跳过";
                     try { alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-                            Math.min(now + 60_000, ScheduleWindow.end(ScheduleWindow.date(now))), alarm()); }
+                            Math.min(now + 60_000, ScheduleWindow.end(due)), alarm()); }
                     catch (SecurityException e) { error = "请开启定时执行权限"; }
                     return;
                 }
                 // Claim before launching: process death cannot replay a partially completed action.
                 if (!prefs.edit().putString("handled", day).putLong("due", 0)
-                        .putString("last", day + " 已触发；若无后续结果，任务可能被系统中断").commit()) { error = "保存任务状态失败"; return; }
+                        .putString("last", label(day) + " 已触发；若无后续结果，任务可能被系统中断").commit()) { error = "保存任务状态失败"; return; }
                 int result = QuickActionController.get(context).start("schedule-" + day);
                 if (result != 202) record("schedule-" + day, result == 409 ? "失败：已有操作正在执行" : "失败：无障碍服务不可用或飞书未安装");
                 handled = day;
@@ -79,12 +86,16 @@ final class TaskScheduler {
     }
     synchronized void record(String id, String result) {
         if (!id.startsWith("schedule-")) return;
-        if (!id.substring(9).equals(prefs.getString("handled", ""))) return;
-        prefs.edit().putString("last", id.substring(9) + " " + result).commit();
+        if (!ScheduleWindow.normalize(id.substring(9)).equals(ScheduleWindow.normalize(prefs.getString("handled", "")))) return;
+        prefs.edit().putString("last", label(id.substring(9)) + " " + result).commit();
+    }
+    private static String label(String key) {
+        String normalized = ScheduleWindow.normalize(key);
+        return normalized.substring(0, 10) + (normalized.endsWith("/0") ? " 上午" : " 下午");
     }
     synchronized String description() {
         String next = prefs.getLong("due", 0) == 0 ? "待安排" : FORMAT.format(Instant.ofEpochMilli(prefs.getLong("due", 0)));
-        return (enabled() ? "已开启" : "已关闭") + " · 北京时间周一至周五 17:45–18:05，每天随机一次\n"
+        return (enabled() ? "已开启" : "已关闭") + " · 北京时间周一至周五 08:35–08:50、17:50–18:05，每个时段随机一次\n"
                 + (enabled() ? "下次：" + next + "\n" : "")
                 + (!error.isEmpty() ? error + "\n" : enabled() && !permitted() ? "请开启定时执行权限\n" : "")
                 + "最近结果：" + prefs.getString("last", "暂无") + "\n按星期执行，不排除法定节假日；错过窗口不补执行。";

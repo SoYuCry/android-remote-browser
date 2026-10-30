@@ -6,7 +6,7 @@ User-visible changes are recorded here. Keep new work under **Unreleased**; move
 
 ### Added
 
-- Companion 0.3 optional weekday schedule: one persisted random Feishu launch-and-return attempt between 17:45 and 18:05 in Asia/Shanghai, Monday–Friday. Includes exact-alarm permission setup, boot/update recovery, next-run/result display, daily duplicate protection, and no catch-up outside the window. Screen timeout remains unchanged.
+- Companion 0.3 optional weekday schedule: one persisted random Feishu launch-and-return attempt in each window, 08:35–08:50 and 17:50–18:05 in Asia/Shanghai, Monday–Friday. Includes exact-alarm permission setup, boot/update recovery, next-run/result display, per-window duplicate protection, and no catch-up outside the window. Screen timeout remains unchanged.
 
 - Companion 0.2 quick-action page: pair a browser once, wake the phone, open Feishu for five seconds after foreground confirmation, and return to the launcher. Preserve the original automatic screen timeout. ([#2](https://github.com/SoYuCry/android-remote-browser/pull/2))
 - Single-use pairing codes, remembered device credentials, individual/global revocation, authenticated action requests, and duplicate/concurrent request protection.

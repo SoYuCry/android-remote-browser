@@ -9,8 +9,8 @@ android {
         if (project.hasProperty('parallelInstall')) applicationIdSuffix '.quick'
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName '0.3.0'
+        versionCode 4
+        versionName '0.3.1'
         testInstrumentationRunner 'io.github.soyucy.androidremote.companion.QuickChecks'
         buildConfigField 'int', 'HTTP_PORT', project.hasProperty('parallelInstall') ? '6081' : '6080'
         resValue 'string', 'app_name', project.hasProperty('parallelInstall') ? '手机快捷操作' : 'Remote Browser Companion'
