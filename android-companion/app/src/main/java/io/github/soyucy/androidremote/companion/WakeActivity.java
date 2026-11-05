@@ -14,7 +14,13 @@ import android.view.Display;
 import android.view.WindowManager;
 import android.widget.TextView;
 
-/** Wait for a visible, resumed wake window before handing off to Feishu. */
+/**
+ * Wait for a visible, resumed wake window before handing off to Feishu.
+ * Launching from onCreate can preempt the activity's screen-on transition. On Huawei
+ * Android 9, even a focused activity was observed with display OFF; the controller's
+ * legacy wake lock handles that case. Foreground package identity alone is not proof
+ * of a lit screen, so both interactive state and Display.STATE_ON must be verified.
+ */
 public final class WakeActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private long deadline;

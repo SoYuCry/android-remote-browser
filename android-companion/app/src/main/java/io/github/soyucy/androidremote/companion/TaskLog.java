@@ -10,7 +10,19 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import org.json.JSONObject;
 
-/** Bounded, device-local diagnostics; never logs credentials or app content. */
+/**
+ * Bounded, device-local diagnostics; never logs credentials or app content.
+ * Device-protected files/task-events.jsonl rotates at ~512 KiB into one previous file.
+ * Timestamps are UTC; elapsedMs and pid help identify clock changes and process restarts.
+ * A killed process may not emit a destroy event. Heartbeats are emitted every five minutes.
+ * alarm_received/schedule_due distinguish missing delivery from late processing;
+ * screen_confirmed/screen_timeout distinguish actual screen-on from foreground switches;
+ * action_state/action_failure include final outcomes and the failure foreground package.
+ * A package name alone does not identify a particular system dialog.
+ * Export a debug parallel installation through authorized ADB:
+ * adb shell run-as io.github.soyucy.androidremote.companion.quick cat
+ * /data/user_de/0/io.github.soyucy.androidremote.companion.quick/files/task-events.jsonl
+ */
 final class TaskLog {
     static synchronized void write(Context context, String event, String detail) {
         try {

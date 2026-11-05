@@ -7,7 +7,17 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import java.util.UUID;
 
-/** Explicitly armed debug-only test, separate from the production calendar. */
+/**
+ * Explicitly armed debug-only test, separate from the production calendar.
+ * Starts after five minutes, then runs ten slots at two-minute intervals so the default
+ * one-minute screen timeout can expire between actions. Claims persist before dispatch;
+ * missed slots are logged rather than replayed, and the alarm is canceled after ten claims.
+ * Launch a fresh activity instance (this actually opens Feishu):
+ * adb shell am start -f 0x10008000
+ * -n io.github.soyucy.androidremote.companion.quick/io.github.soyucy.androidremote.companion.MainActivity
+ * --ez diagnostic_test true
+ * This short test with USB power does not establish overnight/deep-idle reliability.
+ */
 final class DiagnosticSchedule {
     static final String ACTION = "diagnostic_alarm";
     static final long INTERVAL = 120_000;
