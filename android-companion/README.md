@@ -15,7 +15,7 @@ Companion 是 Android Remote Browser 的 Android 端守护 App。它把原来需
 - 一键复制 Safari URL；
 - 一键打开 Tailscale、droidVNC-NG、无障碍设置、电池优化设置。
 
-快捷操作：唤醒手机 → 打开飞书 → 确认进入前台后停留 5 秒 → 返回并确认桌面。仅确认应用打开/桌面返回，不点击飞书内的按钮，不判断业务结果。
+快捷操作：唤醒手机并确认屏幕已亮 → 打开飞书 → 确认进入前台后停留 5 秒 → 返回并确认桌面。仅确认应用打开/桌面返回，不点击飞书内的按钮，不判断业务结果。
 
 ## 工作日自动任务（0.3）
 
@@ -122,3 +122,12 @@ Companion App 使用从 droidVNC-NG APK 提取的 noVNC 静态资源。重新分
 - Companion 由 BootReceiver 自动恢复 `6080` proxy。
 
 如果 Safari 页面能打开但黑屏/不可控，问题通常在 droidVNC-NG 的 Screen Capture 或 Input 权限，不在 Companion。
+
+## 设备兼容性与已知问题
+
+已在华为 nova 3（Android 9）验证，其他设备可能需要调整系统设置。
+
+- **华为后台管理**：将「手机快捷操作」设为手动管理，允许自启动、关联启动、后台活动，并关闭电池优化。
+- **旧系统不亮屏**：已增加主动唤醒和亮屏检查，完成后仍按原设置自动熄屏。
+
+执行日志保存在手机本地，方便排查漏执行和失败；诊断测试用法见代码中的 DiagnosticSchedule，日志说明见 TaskLog。

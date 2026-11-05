@@ -53,6 +53,7 @@ final class TaskScheduler {
         }
         if (due != 0 && now >= due) {
             String day = ScheduleWindow.key(due);
+            TaskLog.write(context, "schedule_due", day + " due=" + due + " lateMs=" + (now - due) + " allowRun=" + allowRun);
             if (!ScheduleWindow.sameWindow(due, now)) {
                 if (!prefs.edit().putString("handled", day).putLong("due", 0)
                         .putString("last", label(day) + " 已错过窗口，未补执行").commit()) { error = "保存任务状态失败"; return; }
@@ -71,6 +72,7 @@ final class TaskScheduler {
                 // Claim before launching: process death cannot replay a partially completed action.
                 if (!prefs.edit().putString("handled", day).putLong("due", 0)
                         .putString("last", label(day) + " 已触发；若无后续结果，任务可能被系统中断").commit()) { error = "保存任务状态失败"; return; }
+                TaskLog.write(context, "schedule_claim", day);
                 int result = QuickActionController.get(context).start("schedule-" + day);
                 if (result != 202) record("schedule-" + day, result == 409 ? "失败：已有操作正在执行" : "失败：无障碍服务不可用或飞书未安装");
                 handled = day;
@@ -79,6 +81,7 @@ final class TaskScheduler {
         }
         if (due == 0) {
             due = ScheduleWindow.next(now, handled, new SecureRandom());
+            TaskLog.write(context, "schedule_next", "due=" + due);
             if (!prefs.edit().putLong("due", due).commit()) { error = "保存执行时间失败"; return; }
         }
         if (due == 0) {
@@ -92,6 +95,7 @@ final class TaskScheduler {
     synchronized void record(String id, String result) {
         if (!id.startsWith("schedule-")) return;
         if (!ScheduleWindow.normalize(id.substring(9)).equals(ScheduleWindow.normalize(prefs.getString("handled", "")))) return;
+        TaskLog.write(context, "schedule_result", id + " " + result);
         prefs.edit().putString("last", label(id.substring(9)) + " " + result).commit();
     }
     private static String label(String key) {

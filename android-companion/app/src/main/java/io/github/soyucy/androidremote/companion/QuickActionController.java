@@ -41,6 +41,7 @@ final class QuickActionController {
             state = "failed";
             message = "上次操作因服务重启中断，未确认返回桌面";
             save();
+            TaskLog.write(context, "action_interrupted", requestId);
             recordScheduledResult(requestId, message);
         }
     }
@@ -57,6 +58,7 @@ final class QuickActionController {
         if (requests.containsKey(id)) return 200;
         if (running) return 409;
         if (QuickActionService.current() == null || !StatusChecker.isInstalled(context, FEISHU)) return 412;
+        TaskLog.write(context, "action_start", id + " interactive=" + context.getSystemService(PowerManager.class).isInteractive() + " locked=" + context.getSystemService(android.app.KeyguardManager.class).isKeyguardLocked());
         requestId = id;
         requests.put(id, true);
         if (requests.size() > 64) requests.remove(requests.keySet().iterator().next());
@@ -69,9 +71,11 @@ final class QuickActionController {
         try {
             QuickActionService service = QuickActionService.current();
             if (service == null) { fail("快捷操作权限已关闭"); return; }
-            // The activity wakes the display. This timed lock only keeps it on during this task.
+            // Older OEM builds may ignore Activity.setTurnScreenOn even with window focus.
             PowerManager pm = context.getSystemService(PowerManager.class);
-            wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "RemoteBrowser:QuickAction");
+            int wakeFlags = PowerManager.SCREEN_DIM_WAKE_LOCK;
+            if (android.os.Build.VERSION.SDK_INT <= 28) wakeFlags |= PowerManager.ACQUIRE_CAUSES_WAKEUP;
+            wakeLock = pm.newWakeLock(wakeFlags, "RemoteBrowser:QuickAction");
             wakeLock.acquire(25_000);
             handler.postDelayed(() -> fail("操作超时，未确认返回桌面"), 22_000);
             service.startActivity(new Intent(service, WakeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
@@ -81,6 +85,7 @@ final class QuickActionController {
     void attach(WakeActivity activity) { wakeActivity = activity; }
     void launchFeishu() {
         if (!isRunning()) return;
+        if (!WakeActivity.screenOn(context)) { fail("屏幕未亮，已停止打开飞书"); return; }
         try {
             Intent intent = context.getPackageManager().getLaunchIntentForPackage(FEISHU);
             if (intent == null || QuickActionService.current() == null) { fail("无法启动飞书"); return; }
@@ -94,7 +99,7 @@ final class QuickActionController {
         if (!isRunning()) return;
         QuickActionService service = QuickActionService.current();
         if (service == null) { fail("快捷操作权限已关闭"); return; }
-        if (FEISHU.equals(service.foregroundPackage())) {
+        if (WakeActivity.screenOn(context) && FEISHU.equals(service.foregroundPackage())) {
             update("waiting", "飞书已打开，5 秒后返回桌面");
             handler.postDelayed(this::goHome, 5_000);
         } else if (SystemClock.elapsedRealtime() >= deadline) fail("未确认飞书进入前台，请用完整远控检查");
@@ -102,6 +107,7 @@ final class QuickActionController {
     }
     private void goHome() {
         if (!isRunning()) return;
+        if (!WakeActivity.screenOn(context)) { fail("飞书停留期间屏幕熄灭，未确认完成"); return; }
         update("returning", "正在返回桌面");
         if (wakeActivity != null) { wakeActivity.finish(); wakeActivity = null; }
         QuickActionService service = QuickActionService.current();
@@ -113,14 +119,21 @@ final class QuickActionController {
         if (!isRunning()) return;
         QuickActionService service = QuickActionService.current();
         ResolveInfo home = context.getPackageManager().resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
-        if (home != null && service != null && home.activityInfo.packageName.equals(service.foregroundPackage())) {
+        if (WakeActivity.screenOn(context) && home != null && service != null && home.activityInfo.packageName.equals(service.foregroundPackage())) {
             finish("done", "飞书已打开并返回桌面，屏幕将按原设置自动熄灭");
         } else if (SystemClock.elapsedRealtime() >= deadline) fail("已发送返回指令，但未确认桌面出现");
         else handler.postDelayed(this::checkHome, 250);
     }
     void interrupt() { handler.post(() -> fail("快捷操作服务中断，未确认返回桌面")); }
-    void fail(String reason) { if (isRunning()) finish("failed", reason); }
-    private synchronized void update(String next, String text) { state = next; message = text; save(); }
+    void fail(String reason) {
+        if (isRunning()) {
+            QuickActionService service = QuickActionService.current();
+            TaskLog.write(context, "action_failure", requestId + " foreground="
+                    + (service == null ? "accessibility_missing" : service.foregroundPackage()) + " reason=" + reason);
+            finish("failed", reason);
+        }
+    }
+    private synchronized void update(String next, String text) { state = next; message = text; save(); TaskLog.write(context, "action_state", requestId + " state=" + state + " message=" + message); }
     private synchronized void finish(String next, String text) {
         handler.removeCallbacksAndMessages(null);
         if (wakeActivity != null) { wakeActivity.finish(); wakeActivity = null; }

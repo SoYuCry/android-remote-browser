@@ -208,3 +208,5 @@ Contributions are welcome if they improve clarity, portability, safety, or recov
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
+
+See [device compatibility and known issues (Chinese)](android-companion/README.md#设备兼容性与已知问题) for Huawei background controls, older Android wake behavior, USB dialogs, and task diagnostics.
