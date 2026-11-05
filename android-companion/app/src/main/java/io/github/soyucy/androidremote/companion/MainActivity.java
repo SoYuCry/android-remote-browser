@@ -43,6 +43,7 @@ public final class MainActivity extends Activity {
         CompanionService.start(this);
         requestNotificationPermissionIfNeeded();
         buildUi();
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("diagnostic_test", false)) DiagnosticSchedule.arm(this);
     }
 
     @Override protected void onResume() {

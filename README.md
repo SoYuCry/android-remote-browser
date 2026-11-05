@@ -261,3 +261,5 @@ Android 的屏幕采集由系统 `MediaProjection` 权限控制。对于非 root
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
+
+设备设置与排查见 [设备兼容性与已知问题](android-companion/README.md#设备兼容性与已知问题)：华为后台启动管理、旧版 Android 亮屏、USB 弹窗及任务诊断日志。

@@ -22,9 +22,15 @@ public final class CompanionService extends Service {
     private static CompanionService instance;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ProxyServer proxy;
+    private long lastHeartbeat;
     private final Runnable watchdog = new Runnable() {
         @Override public void run() {
             ensureProxy();
+            if (android.os.SystemClock.elapsedRealtime() - lastHeartbeat >= 300_000) {
+                lastHeartbeat = android.os.SystemClock.elapsedRealtime();
+                TaskLog.write(CompanionService.this, "heartbeat", "accessibility=" + (QuickActionService.current() != null));
+            }
+            DiagnosticSchedule.reconcile(CompanionService.this);
             TaskScheduler.get(CompanionService.this).reconcile(true);
             updateNotification();
             handler.postDelayed(this, 60_000);
@@ -54,6 +60,7 @@ public final class CompanionService extends Service {
     @Override public void onCreate() {
         super.onCreate();
         instance = this;
+        TaskLog.write(this, "service_create", "");
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification(StatusChecker.check(this, proxy)));
         ensureProxy();
@@ -61,6 +68,8 @@ public final class CompanionService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        TaskLog.write(this, "service_start", "startId=" + startId);
+        DiagnosticSchedule.reconcile(this);
         String action = intent == null ? ACTION_START : intent.getAction();
         if (ACTION_STOP.equals(action)) {
             stopProxy();
@@ -68,12 +77,8 @@ public final class CompanionService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (ACTION_RESTART.equals(action)) {
-            stopProxy();
-            ensureProxy();
-        } else {
-            ensureProxy();
-        }
+        if (ACTION_RESTART.equals(action)) stopProxy();
+        ensureProxy();
         updateNotification();
         TaskScheduler.get(this).reconcile(true);
         return START_STICKY;
@@ -82,6 +87,7 @@ public final class CompanionService extends Service {
     @Override public IBinder onBind(Intent intent) { return null; }
 
     @Override public void onDestroy() {
+        TaskLog.write(this, "service_destroy", "");
         handler.removeCallbacksAndMessages(null);
         stopProxy();
         if (instance == this) instance = null;

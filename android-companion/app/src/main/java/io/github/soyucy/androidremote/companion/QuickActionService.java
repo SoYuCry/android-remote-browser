@@ -8,10 +8,11 @@ import android.view.accessibility.AccessibilityNodeInfo;
 public final class QuickActionService extends AccessibilityService {
     private static volatile QuickActionService instance;
     static QuickActionService current() { return instance; }
-    @Override protected void onServiceConnected() { instance = this; }
+    @Override protected void onServiceConnected() { instance = this; TaskLog.write(this, "accessibility_connected", ""); }
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
     @Override public void onInterrupt() { QuickActionController.get(this).interrupt(); }
     @Override public void onDestroy() {
+        TaskLog.write(this, "accessibility_destroy", "");
         if (instance == this) instance = null;
         QuickActionController.get(this).interrupt();
         super.onDestroy();

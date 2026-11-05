@@ -6,6 +6,10 @@ User-visible changes are recorded here. Keep new work under **Unreleased**; move
 
 ### Added
 
+- Wait for the wake activity to become visible and confirm the display is ON before launching Feishu; screen-off app switches no longer count as success.
+
+- Device-local rotating task diagnostics record service/accessibility lifecycle, scheduled deliveries, delays and action outcomes. An explicitly armed debug test runs ten scheduled Feishu actions, starting five minutes later at two-minute intervals, independently of the normal calendar.
+
 - Companion 0.3.2 follows the official mainland China 2026 holiday calendar: skip days off, include weekend makeup workdays, and pause with an update notice when the next year's calendar is missing.
 
 - Companion 0.3 optional weekday schedule: one persisted random Feishu launch-and-return attempt in each window, 08:35–08:50 and 17:50–18:05 in Asia/Shanghai, Monday–Friday. Includes exact-alarm permission setup, boot/update recovery, next-run/result display, per-window duplicate protection, and no catch-up outside the window. Screen timeout remains unchanged.
