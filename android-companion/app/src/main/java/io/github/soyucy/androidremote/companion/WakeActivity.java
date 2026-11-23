@@ -24,7 +24,7 @@ import android.widget.TextView;
 public final class WakeActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private long deadline;
-    private boolean launched, dismissRequested;
+    private boolean launched, dismissRequested, usbBackAttempted;
 
     static boolean screenOn(Context context) {
         Display display = context.getSystemService(DisplayManager.class).getDisplay(Display.DEFAULT_DISPLAY);
@@ -60,6 +60,12 @@ public final class WakeActivity extends Activity {
         QuickActionController controller = QuickActionController.get(this);
         if (launched || isFinishing() || !controller.isRunning()) return;
         KeyguardManager keyguard = getSystemService(KeyguardManager.class);
+        QuickActionService service = QuickActionService.current();
+        if (!usbBackAttempted && screenOn(this) && service != null && service.isUsbConnectionDialog()) {
+            usbBackAttempted = true;
+            boolean sent = service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
+            TaskLog.write(this, "usb_dialog_back", "sent=" + sent);
+        }
         if (keyguard.isKeyguardLocked() && !dismissRequested) {
             dismissRequested = true;
             keyguard.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {
@@ -70,7 +76,7 @@ public final class WakeActivity extends Activity {
         if (hasWindowFocus() && screenOn(this) && !keyguard.isKeyguardLocked()) {
             launched = true;
             TaskLog.write(this, "screen_confirmed", "interactive=true display=ON focus=true");
-            controller.launchFeishu();
+            controller.prepareHome();
         } else if (SystemClock.elapsedRealtime() >= deadline) {
             TaskLog.write(this, "screen_timeout", "screenOn=" + screenOn(this)
                     + " focus=" + hasWindowFocus() + " locked=" + keyguard.isKeyguardLocked());

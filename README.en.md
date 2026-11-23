@@ -25,7 +25,7 @@ Android Remote Browser lets you operate your own Android phone from iPhone Safar
 | Briefly open Feishu, then return home | `/quick` | Pair once and remember this browser |
 | View the screen, tap, and swipe freely | `/vnc.html` | Existing droidVNC-NG password |
 
-The quick action **wakes the phone → opens Feishu → waits five seconds after confirming it is foreground → returns to the launcher**. It does not load a screen stream or return screenshots, and preserves the original automatic screen timeout.
+The quick action **wakes the phone → confirms the home screen is visible → opens Feishu for 20 seconds → returns to the home screen**. It does not load a screen stream or return screenshots, and preserves the original automatic screen timeout.
 
 Quick actions require Companion, Tailscale, and Feishu. Full screen control additionally requires droidVNC-NG.
 
@@ -209,4 +209,4 @@ Contributions are welcome if they improve clarity, portability, safety, or recov
 
 MIT. See [`LICENSE`](LICENSE).
 
-See [device compatibility and known issues (Chinese)](android-companion/README.md#设备兼容性与已知问题) for Huawei background controls, older Android wake behavior, USB dialogs, and task diagnostics.
+If a Huawei phone asks you not to cover the top of the screen when it wakes, search system settings for **Mistouch prevention** and turn it off. See [device compatibility and known issues (Chinese)](android-companion/README.md#设备兼容性与已知问题) for more troubleshooting.

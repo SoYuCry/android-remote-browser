@@ -76,13 +76,33 @@ final class QuickActionController {
             int wakeFlags = PowerManager.SCREEN_DIM_WAKE_LOCK;
             if (android.os.Build.VERSION.SDK_INT <= 28) wakeFlags |= PowerManager.ACQUIRE_CAUSES_WAKEUP;
             wakeLock = pm.newWakeLock(wakeFlags, "RemoteBrowser:QuickAction");
-            wakeLock.acquire(25_000);
-            handler.postDelayed(() -> fail("操作超时，未确认返回桌面"), 22_000);
+            wakeLock.acquire(45_000);
+            handler.postDelayed(() -> fail("操作超时，未确认返回桌面"), 42_000);
             service.startActivity(new Intent(service, WakeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
         } catch (Exception e) { fail("无法唤醒手机，请检查后台运行权限"); }
     }
     synchronized boolean isRunning() { return running; }
     void attach(WakeActivity activity) { wakeActivity = activity; }
+    void prepareHome() {
+        if (!isRunning()) return;
+        update("preparing", "正在返回桌面，准备打开飞书");
+        QuickActionService service = QuickActionService.current();
+        if (service == null || !service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)) {
+            fail("打开前返回桌面失败"); return;
+        }
+        deadline = SystemClock.elapsedRealtime() + 4_000;
+        handler.postDelayed(this::checkInitialHome, 300);
+    }
+    private void checkInitialHome() {
+        if (!isRunning()) return;
+        QuickActionService service = QuickActionService.current();
+        ResolveInfo home = context.getPackageManager().resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+        if (WakeActivity.screenOn(context) && home != null && service != null && home.activityInfo.packageName.equals(service.foregroundPackage())) {
+            TaskLog.write(context, "initial_home_confirmed", requestId);
+            launchFeishu();
+        } else if (SystemClock.elapsedRealtime() >= deadline) fail("打开前未确认桌面出现");
+        else handler.postDelayed(this::checkInitialHome, 250);
+    }
     void launchFeishu() {
         if (!isRunning()) return;
         if (!WakeActivity.screenOn(context)) { fail("屏幕未亮，已停止打开飞书"); return; }
@@ -100,8 +120,8 @@ final class QuickActionController {
         QuickActionService service = QuickActionService.current();
         if (service == null) { fail("快捷操作权限已关闭"); return; }
         if (WakeActivity.screenOn(context) && FEISHU.equals(service.foregroundPackage())) {
-            update("waiting", "飞书已打开，5 秒后返回桌面");
-            handler.postDelayed(this::goHome, 5_000);
+            update("waiting", "飞书已打开，20 秒后返回桌面");
+            handler.postDelayed(this::goHome, 20_000);
         } else if (SystemClock.elapsedRealtime() >= deadline) fail("未确认飞书进入前台，请用完整远控检查");
         else handler.postDelayed(this::checkOpened, 250);
     }
