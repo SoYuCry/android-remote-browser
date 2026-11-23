@@ -26,7 +26,7 @@ if (mode === '--live') {
   assert.equal(accepted.code, 202);
   assert.equal((await request('/api/run', {requestId})).code, 200);
   assert.equal((await request('/api/run', {requestId:randomUUID()})).code, 409);
-  const deadline = performance.now()+25000;
+  const deadline = performance.now()+45000;
   let state;
   do {
     await new Promise(resolve=>setTimeout(resolve,500));

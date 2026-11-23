@@ -4,6 +4,12 @@ User-visible changes are recorded here. Keep new work under **Unreleased**; move
 
 ## Unreleased
 
+### Changed
+
+- Confirm the home screen before opening Feishu. Try Back once for the recognized Huawei USB connection dialog and log the attempt.
+- Keep Feishu in the foreground for 20 seconds instead of 5.
+- Document how to turn off Huawei mistouch prevention when it blocks the home screen after wake.
+
 ### Added
 
 - Wait for the wake activity to become visible and confirm the display is ON before launching Feishu; screen-off app switches no longer count as success.

@@ -72,7 +72,7 @@ public final class MainActivity extends Activity {
         root.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("提供快捷操作和完整远控入口。快捷操作会打开飞书 5 秒并返回桌面，屏幕保持原来的自动熄灭设置。");
+        subtitle.setText("提供快捷操作和完整远控入口。快捷操作会打开飞书 20 秒并返回桌面，屏幕保持原来的自动熄灭设置。");
         subtitle.setTextSize(14);
         subtitle.setTextColor(Color.rgb(90, 90, 90));
         subtitle.setPadding(0, dp(8), 0, dp(14));
